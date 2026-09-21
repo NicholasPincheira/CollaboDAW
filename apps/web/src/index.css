@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
+  --color-studio-bg: #0b0d10;
+  --color-studio-elevated: #12151a;
+  --color-studio-panel: #171b22;
+  --color-studio-line: #2a313c;
+  --color-studio-amber: #ff7a18;
+  --color-studio-accent: #3dd6c6;
+  --color-studio-mist: #b7c0cc;
+  --color-studio-fog: #f4f7fb;
+  --color-studio-dim: #7c8796;
+  --color-track-a: #ff7a18;
+  --color-track-b: #d97757;
+  --color-track-c: #e5484d;
+  --color-track-d: #8b5cf6;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(255, 122, 24, 0.12), transparent 55%),
+    radial-gradient(900px 400px at 90% 0%, rgba(61, 214, 198, 0.08), transparent 50%),
+    var(--color-studio-bg);
+  color: var(--color-studio-fog);
+  font-family: var(--font-sans);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.meter-fill {
+  transition: width 80ms linear;
+}

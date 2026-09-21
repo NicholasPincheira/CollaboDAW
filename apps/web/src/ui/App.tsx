@@ -1,0 +1,111 @@
+import { useEffect, useMemo, useState } from "react";
+import { AudioLabController } from "../application/audio-lab/audio-lab-controller.ts";
+import { parseHashRoute, routeToHash, type AppRoute } from "../application/navigation/hash-route.ts";
+import type { SessionCatalog, WorkSession } from "../domain/session/session-catalog.ts";
+import type { SessionBackend } from "../infrastructure/session/create-session-catalog.ts";
+import { DashboardPage } from "./DashboardPage.tsx";
+import { StudioWorkspace } from "./StudioWorkspace.tsx";
+
+export function App({
+  catalog,
+  backend,
+}: {
+  catalog: SessionCatalog;
+  backend: SessionBackend;
+}) {
+  const [route, setRoute] = useState<AppRoute>(() => parseHashRoute(window.location.hash || "#/"));
+  const [session, setSession] = useState<WorkSession | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const controller = useMemo(() => new AudioLabController(), []);
+
+  useEffect(() => {
+    const onHash = (): void => {
+      setRoute(parseHashRoute(window.location.hash));
+    };
+    window.addEventListener("hashchange", onHash);
+    if (!window.location.hash) {
+      window.location.hash = routeToHash({ name: "dashboard" });
+    }
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (route.name !== "studio") return;
+    let cancelled = false;
+    void catalog
+      .get(route.sessionId)
+      .then((found) => {
+        if (cancelled) return;
+        if (!found) {
+          setSession(null);
+          setLoadError("Session not found.");
+          return;
+        }
+        setLoadError(null);
+        setSession(found);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setSession(null);
+        setLoadError(error instanceof Error ? error.message : "Could not open session.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [catalog, route]);
+
+  function navigate(next: AppRoute): void {
+    window.location.hash = routeToHash(next);
+    setRoute(next);
+    if (next.name === "dashboard") {
+      setSession(null);
+      setLoadError(null);
+    }
+  }
+
+  if (route.name === "dashboard") {
+    return (
+      <DashboardPage
+        catalog={catalog}
+        backend={backend}
+        onOpen={(sessionId) => navigate({ name: "studio", sessionId })}
+      />
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-studio-fog">
+        <p role="alert">{loadError}</p>
+        <button
+          type="button"
+          className="rounded-xl bg-studio-fog px-4 py-2 text-sm font-semibold text-studio-bg"
+          onClick={() => navigate({ name: "dashboard" })}
+        >
+          Back to sessions
+        </button>
+      </div>
+    );
+  }
+
+  if (!session || session.id !== route.sessionId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-studio-dim">
+        Opening session…
+      </div>
+    );
+  }
+
+  return (
+    <StudioWorkspace
+      key={session.id}
+      controller={controller}
+      catalog={catalog}
+      session={session}
+      onBack={() => navigate({ name: "dashboard" })}
+      onSessionUpdated={setSession}
+    />
+  );
+}

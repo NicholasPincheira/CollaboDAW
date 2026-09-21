@@ -1,0 +1,11 @@
+{
+  "name": "collabodaw",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix apps/web",
+    "typecheck": "npm run typecheck --prefix apps/web",
+    "lint": "npm run lint --prefix apps/web",
+    "test": "npm test --prefix apps/web",
+    "build": "npm run build --prefix apps/web"
+  }
+}
