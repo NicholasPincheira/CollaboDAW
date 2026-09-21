@@ -10,9 +10,11 @@ const buttonClass =
 export function AudioLabPanel({
   controller,
   snapshot,
+  compact = false,
 }: {
   controller: AudioLabController;
   snapshot: AudioLabSnapshot;
+  compact?: boolean;
 }) {
   const inputs = snapshot.devices.filter((device) => device.kind === "audioinput");
   const outputs = snapshot.devices.filter((device) => device.kind === "audiooutput");
@@ -21,13 +23,22 @@ export function AudioLabPanel({
   const channelCount = snapshot.diagnostics.inputChannelCount ?? 0;
 
   return (
-    <section className="rounded-2xl border border-studio-line bg-studio-elevated p-4" aria-labelledby="audio-lab-heading">
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="audio-lab-heading" className="text-sm tracking-[0.16em] text-studio-amber uppercase">
+    <section
+      className={compact ? "p-1" : "rounded-2xl border border-studio-line bg-studio-elevated p-4"}
+      aria-labelledby="audio-lab-heading"
+    >
+      {!compact ? (
+        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="audio-lab-heading" className="text-sm tracking-[0.16em] text-studio-amber uppercase">
+            Audio Lab
+          </h2>
+          <p className="text-xs text-studio-dim">Status: {snapshot.status}</p>
+        </div>
+      ) : (
+        <h2 id="audio-lab-heading" className="sr-only">
           Audio Lab
         </h2>
-        <p className="text-xs text-studio-dim">Status: {snapshot.status}</p>
-      </div>
+      )}
 
       {snapshot.error ? (
         <p className="mb-3 border border-studio-line px-3 py-2 text-sm text-studio-amber" role="alert">
@@ -95,7 +106,7 @@ export function AudioLabPanel({
         </label>
       </div>
 
-      <div className="mt-4">
+      <div className={compact ? "mt-2" : "mt-4"}>
         <p className="mb-2 text-xs tracking-[0.14em] text-studio-dim uppercase">Latency preset</p>
         <div className="flex flex-wrap gap-2">
           {(["live", "record", "rehearsal", "mix"] as const).map((mode) => (
@@ -110,8 +121,25 @@ export function AudioLabPanel({
             </button>
           ))}
         </div>
+        <label className="mt-2 block text-xs text-studio-mist">
+          Preferred sample rate
+          <select
+            className={`${selectClass} mt-1`}
+            value={snapshot.preferredSampleRate ?? ""}
+            disabled={busy}
+            onChange={(event) => {
+              const value = event.target.value;
+              void controller.setPreferredSampleRate(value ? Number(value) : null);
+            }}
+          >
+            <option value="48000">48000 Hz</option>
+            <option value="44100">44100 Hz</option>
+            <option value="">Browser default</option>
+          </select>
+        </label>
         <p className="mt-2 text-[11px] text-studio-dim">
-          Changing preset recreates AudioContext (`latencyHint`). Prefer Live for monitoring tests.
+          Changing preset/rate recreates AudioContext. Lowest feel: interface Direct Monitor ON + software
+          monitor muted. Dual sinks are not sample-locked.
         </p>
       </div>
 

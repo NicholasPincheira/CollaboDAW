@@ -40,6 +40,7 @@ export interface AudioLabSnapshot {
   monitoring: boolean;
   channelMonitors: ChannelMonitorState[];
   latencyMode: LatencyMode;
+  preferredSampleRate: number | null;
   sinkStatus: "default" | "applied" | "unsupported" | "failed";
   secondarySinkStatus: "off" | "applied" | "unsupported" | "failed";
   clickPlaying: boolean;
@@ -94,6 +95,7 @@ export class AudioLabController {
       monitoring: false,
       channelMonitors: [],
       latencyMode: "live",
+      preferredSampleRate: 48000,
       sinkStatus: "default",
       secondarySinkStatus: "off",
       clickPlaying: false,
@@ -208,8 +210,18 @@ export class AudioLabController {
   async setLatencyMode(mode: LatencyMode): Promise<void> {
     const wasRunning = this.snapshot.status === "running";
     this.click.stop();
-    await this.engine.setLatencyMode(mode);
+    await this.engine.configurePerformance({ latencyMode: mode });
     this.patch({ latencyMode: mode, clickPlaying: false });
+    if (wasRunning) {
+      await this.startAudio();
+    }
+  }
+
+  async setPreferredSampleRate(sampleRate: number | null): Promise<void> {
+    const wasRunning = this.snapshot.status === "running";
+    this.click.stop();
+    await this.engine.configurePerformance({ sampleRate });
+    this.patch({ preferredSampleRate: sampleRate, clickPlaying: false });
     if (wasRunning) {
       await this.startAudio();
     }

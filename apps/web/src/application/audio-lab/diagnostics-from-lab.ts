@@ -42,6 +42,27 @@ export function diagnosticsFromAudioLab(snapshot: AudioLabSnapshot): Diagnostics
       group: "audio",
     },
     {
+      id: "roundtrip-estimate",
+      label: "Est. monitor path",
+      value: formatRoundTrip(
+        snapshot.diagnostics.baseLatencySeconds,
+        snapshot.diagnostics.outputLatencySeconds,
+      ),
+      group: "audio",
+    },
+    {
+      id: "latency-preset",
+      label: "Latency preset",
+      value: snapshot.latencyMode,
+      group: "audio",
+    },
+    {
+      id: "preferred-sr",
+      label: "Preferred sample rate",
+      value: snapshot.preferredSampleRate ? `${snapshot.preferredSampleRate} Hz` : "browser default",
+      group: "audio",
+    },
+    {
       id: "input-channels",
       label: "Input channels",
       value: formatMeasured(snapshot.diagnostics.inputChannelCount),
@@ -80,4 +101,10 @@ function formatHz(value: number | null): string {
 function formatMs(value: number | null): string {
   if (value === null) return NOT_MEASURED;
   return `${(value * 1000).toFixed(2)} ms`;
+}
+
+function formatRoundTrip(base: number | null, output: number | null): string {
+  if (base === null && output === null) return NOT_MEASURED;
+  const total = (base ?? 0) + (output ?? 0);
+  return `${(total * 1000).toFixed(1)} ms (base+out · not instrument→ear)`;
 }

@@ -17,7 +17,7 @@ export function DiagnosticsPanel({ snapshot }: { snapshot: DiagnosticsSnapshot }
         <h2 id="diagnostics-heading" className="text-sm tracking-[0.16em] text-studio-amber uppercase">
           Diagnostics
         </h2>
-        <p className="text-xs text-studio-dim">Placeholder</p>
+        <p className="text-xs text-studio-dim">Live readings · network/sync after WebRTC</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {GROUPS.map((group) => (

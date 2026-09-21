@@ -44,6 +44,7 @@ export class WebAudioLabEngine implements AudioEngine {
   private exposedChannelCount = 0;
   private endedHandler: (() => void) | null = null;
   private latencyMode: LatencyMode = "live";
+  private preferredSampleRate: number | null = 48000;
   private primarySinkId = "";
   private secondarySinkId = "";
 
@@ -66,14 +67,34 @@ export class WebAudioLabEngine implements AudioEngine {
     return this.latencyMode;
   }
 
-  async setLatencyMode(mode: LatencyMode): Promise<void> {
-    if (this.latencyMode === mode) return;
-    this.latencyMode = mode;
-    // Context must be recreated for a new latencyHint; caller should restart capture.
-    if (this.context && this.context.state !== "closed") {
+  getPreferredSampleRate(): number | null {
+    return this.preferredSampleRate;
+  }
+
+  /** Recreate context on next ensure/start when rate or latency mode changes. */
+  async configurePerformance(options: {
+    latencyMode?: LatencyMode;
+    sampleRate?: number | null;
+  }): Promise<boolean> {
+    let dirty = false;
+    if (options.latencyMode && options.latencyMode !== this.latencyMode) {
+      this.latencyMode = options.latencyMode;
+      dirty = true;
+    }
+    if (options.sampleRate !== undefined && options.sampleRate !== this.preferredSampleRate) {
+      this.preferredSampleRate = options.sampleRate;
+      dirty = true;
+    }
+    if (dirty && this.context && this.context.state !== "closed") {
       await this.context.close();
       this.context = null;
+      this.masterGain = null;
     }
+    return dirty;
+  }
+
+  async setLatencyMode(mode: LatencyMode): Promise<void> {
+    await this.configurePerformance({ latencyMode: mode });
   }
 
   async start(): Promise<void> {
@@ -291,7 +312,13 @@ export class WebAudioLabEngine implements AudioEngine {
     if (this.context && this.context.state !== "closed") {
       return this.context;
     }
-    this.context = new AudioContext({ latencyHint: latencyHintFor(this.latencyMode) });
+    const options: AudioContextOptions = {
+      latencyHint: latencyHintFor(this.latencyMode),
+    };
+    if (this.preferredSampleRate) {
+      options.sampleRate = this.preferredSampleRate;
+    }
+    this.context = new AudioContext(options);
     this.masterGain = this.context.createGain();
     this.masterGain.gain.value = 1;
     this.masterGain.connect(this.context.destination);
