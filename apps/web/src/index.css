@@ -37,6 +37,16 @@ button:disabled {
   cursor: not-allowed;
 }
 
+[data-motion] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-motion] {
+    opacity: 1;
+  }
+}
+
 .meter-fill {
   transition: width 80ms linear;
 }

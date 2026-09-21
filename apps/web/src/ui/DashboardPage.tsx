@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SessionCatalog, WorkSessionSummary } from "../domain/session/session-catalog.ts";
 import type { SessionBackend } from "../infrastructure/session/create-session-catalog.ts";
+import { playDashboardIntro } from "./shell-motion.ts";
 
 export function DashboardPage({
   catalog,
@@ -11,6 +12,7 @@ export function DashboardPage({
   backend: SessionBackend;
   onOpen: (sessionId: string) => void;
 }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [recent, setRecent] = useState<WorkSessionSummary[] | null>(null);
   const [name, setName] = useState("Friday Jam");
   const [busy, setBusy] = useState(false);
@@ -32,6 +34,23 @@ export function DashboardPage({
       cancelled = true;
     };
   }, [catalog]);
+
+  useEffect(() => {
+    if (recent === null) return;
+    let cancelled = false;
+    let animation: { kill: () => void } | null = null;
+    void playDashboardIntro(rootRef.current).then((tween) => {
+      if (cancelled) {
+        tween?.kill();
+        return;
+      }
+      animation = tween;
+    });
+    return () => {
+      cancelled = true;
+      animation?.kill();
+    };
+  }, [recent]);
 
   async function refresh(): Promise<void> {
     const items = await catalog.listRecent(12);
@@ -66,9 +85,12 @@ export function DashboardPage({
   }
 
   return (
-    <div className="min-h-screen px-4 py-8 text-studio-fog md:px-8">
+    <div ref={rootRef} className="min-h-screen px-4 py-8 text-studio-fog md:px-8">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-10 flex flex-wrap items-end justify-between gap-4">
+        <header
+          data-motion="header"
+          className="mb-10 flex flex-wrap items-end justify-between gap-4"
+        >
           <div>
             <p className="text-xs tracking-[0.28em] text-studio-amber uppercase">MiniDAW</p>
             <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Collaborative</h1>
@@ -82,7 +104,10 @@ export function DashboardPage({
           </p>
         </header>
 
-        <section className="mb-10 rounded-2xl border border-studio-line bg-studio-panel/90 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+        <section
+          data-motion="create"
+          className="mb-10 rounded-2xl border border-studio-line bg-studio-panel/90 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
+        >
           <h2 className="text-sm tracking-[0.16em] text-studio-accent uppercase">New session</h2>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <input
@@ -128,7 +153,10 @@ export function DashboardPage({
           {recent === null ? (
             <p className="text-sm text-studio-dim">Loading sessions…</p>
           ) : recent.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-studio-line px-5 py-10 text-sm text-studio-dim">
+            <p
+              data-motion="recent"
+              className="rounded-2xl border border-dashed border-studio-line px-5 py-10 text-sm text-studio-dim"
+            >
               No sessions yet. Create one to enter the studio.
             </p>
           ) : (
@@ -136,6 +164,7 @@ export function DashboardPage({
               {recent.map((item) => (
                 <li
                   key={item.id}
+                  data-motion="recent"
                   className="rounded-2xl border border-studio-line bg-studio-elevated p-4 transition hover:border-studio-amber/60"
                 >
                   <button type="button" className="w-full text-left" onClick={() => onOpen(item.id)}>

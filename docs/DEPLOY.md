@@ -4,7 +4,9 @@
 
 - GitHub repo connected to **collabodaw-pages** ✅
 - Secrets correctamente nombrados (`CLOUDFLARE_API_TOKEN` con L) ✅
-- Último build Git `ae4d462` falló → casi siempre por **root directory** / **output** / **env vars**
+- Build Git verde (`0135b9f`+) ✅
+- `VITE_SUPABASE_*` + `NODE_VERSION=22` en **Pages → Environment variables** (production + preview) ✅
+- Nota: los secrets de GitHub Actions **no** alimentan el build nativo de Pages; Vite necesita las vars en Cloudflare
 
 ## Cloudflare Pages build settings (required)
 
