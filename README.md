@@ -4,11 +4,9 @@ Browser mini-DAW experiment. Audio Lab first, then sessions, then collaboration.
 
 ## App
 
-- Pages (GitHub auto-deploy): https://collabodaw-pages.pages.dev
-- Legacy Worker (manual): https://collabodaw.nicholasapz7.workers.dev
-- Source app: `apps/web`
-- Deploy docs: `docs/DEPLOY.md`
-- Supabase SQL: `supabase/migrations/`
+- Worker (target like dark-webgame): https://collabodaw.nicholasapz7.workers.dev
+- Pages Direct Upload (no Git badge by design): https://collabodaw-pages.pages.dev
+- Deploy guide: `docs/DEPLOY.md`
 
 ## Commands
 
