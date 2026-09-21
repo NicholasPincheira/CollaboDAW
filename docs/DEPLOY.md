@@ -1,75 +1,70 @@
 # Cloudflare deploy — MiniDAW
 
-## Why `collabodaw-pages` says "No Git connection"
+## Status
 
-That project was created with **Direct Upload** (Wrangler / GitHub Actions uploads `dist`).
+- GitHub repo connected to **collabodaw-pages** ✅
+- Secrets correctamente nombrados (`CLOUDFLARE_API_TOKEN` con L) ✅
+- Último build Git `ae4d462` falló → casi siempre por **root directory** / **output** / **env vars**
 
-Cloudflare rule: a Direct Upload Pages project **cannot** later switch to Git integration. That is why the badge stays on "No Git connection".
+## Cloudflare Pages build settings (required)
 
-Your `dark-webgame` Worker is different: it uses **Workers Builds + GitHub**, so the dashboard shows `NicholasPincheira/DARK-WebGame`.
+In **collabodaw-pages → Settings → Builds**:
 
-## Target setup (same model as dark-webgame)
-
-Use the Worker **`collabodaw`** (not the Pages Direct Upload project):
-
-1. Open https://dash.cloudflare.com → Workers & Pages → **collabodaw**
-2. Settings → **Build** → Connect Git repository
-3. Authorize Cloudflare on GitHub if prompted
-4. Select `NicholasPincheira/CollaboDAW`
-5. Build settings:
+### Option A (preferred)
 
 | Setting | Value |
 | --- | --- |
-| Production branch | `main` |
 | Root directory | `apps/web` |
 | Build command | `npm run build` |
-| Deploy command | `npx wrangler deploy` |
-| Build variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
+| Output directory | `dist` |
 
-After that, the Worker row should show the GitHub repo like `dark-webgame`.
+### Option B (repo root)
 
-Optional: delete or ignore `collabodaw-pages` if you only want one production URL (`collabodaw.*.workers.dev`).
-
-## GitHub Actions (backup / also works)
-
-`.github/workflows/deploy-pages.yml` deploys the **Worker** `collabodaw` on every push to `main`.
-
-### Secrets
-
-| Secret | Required |
+| Setting | Value |
 | --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | yes |
-| `CLOUDFLARE_API_TOKEN` | yes (correct spelling with **L**) |
-| `VITE_SUPABASE_URL` | yes |
-| `VITE_SUPABASE_ANON_KEY` | yes — use **anon** or **publishable** key, never `sb_secret_*` |
+| Root directory | empty / `/` |
+| Build command | `npm run build` |
+| Output directory | `apps/web/dist` |
 
-If you still have a typo secret `CLOUDFARE_API_TOKEN`, rename/recreate it as `CLOUDFLARE_API_TOKEN`.
+### Build environment variables
 
-## Token permissions (image 6 vs dark-webgame)
-
-### For GitHub Actions → Worker deploy (like CI)
-
-`miniDAW token` with only **Cloudflare Pages:Edit** is **not enough** for `wrangler deploy` to a Worker.
-
-Add at least:
-
-| Permission | Access |
+| Name | Value |
 | --- | --- |
-| Account → **Workers Scripts** | Edit |
-| Account → **Account Settings** | Read |
-| Account → **Cloudflare Pages** | Edit (optional, only if you still deploy Pages) |
+| `VITE_SUPABASE_URL` | `https://dgsnfagreqzumnhzcuir.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | anon o publishable (nunca `sb_secret_*`) |
+| `NODE_VERSION` | `22` |
 
-You do **not** need the full dark-webgame token (+23 permissions). That token is over-scoped for MiniDAW.
+Then open the failed deployment → **Retry deployment**.
 
-### For native Cloudflare Git connection (Workers Builds)
+## Why the old "No Git connection" happened
 
-Connecting Git in the dashboard uses Cloudflare’s GitHub App. Cloudflare can auto-create a build token. You do not need to copy dark-webgame’s permission list for that path.
+The first `collabodaw-pages` uploads were Direct Upload. After you connected GitHub, the project now shows `NicholasPincheira/CollaboDAW`.
 
-## Supabase keys (image 2)
+`dark-webgame` is a Worker with Workers Builds. Same idea, different product surface.
 
-| Key | Use |
+## Token permissions
+
+For Pages Git builds, Cloudflare uses its own build credentials. Your **miniDAW token** with **Cloudflare Pages: Edit** is enough for Wrangler/Actions Pages deploys.
+
+You do **not** need the huge dark-webgame token (+23 permissions) for MiniDAW.
+
+If you also deploy the Worker `collabodaw` with Actions, add **Workers Scripts: Edit**.
+
+## GitHub Actions
+
+`.github/workflows/deploy-worker.yml` is **manual backup only** (`workflow_dispatch`). Primary deploys = Cloudflare Pages ↔ GitHub.
+
+Secrets:
+
+| Secret | Status |
 | --- | --- |
-| Publishable / legacy **anon** | Browser / Vite / GitHub Actions build (`VITE_SUPABASE_ANON_KEY`) |
-| **Secret** `sb_secret_*` | Server only — never put in Vite, Pages, Workers frontend, or GitHub frontend secrets |
+| `CLOUDFLARE_ACCOUNT_ID` | ok |
+| `CLOUDFLARE_API_TOKEN` | ok (correct spelling) |
+| `VITE_SUPABASE_URL` | ok |
+| `VITE_SUPABASE_ANON_KEY` | ok |
 
-`public.work_sessions` is already created via MCP with RLS.
+## Supabase
+
+- Project `dgsnfagreqzumnhzcuir`
+- Table `public.work_sessions` exists (RLS on)
+- Frontend: publishable/anon only — never secret keys

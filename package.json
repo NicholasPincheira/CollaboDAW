@@ -6,6 +6,9 @@
     "typecheck": "npm run typecheck --prefix apps/web",
     "lint": "npm run lint --prefix apps/web",
     "test": "npm test --prefix apps/web",
-    "build": "npm run build --prefix apps/web"
+    "build": "npm install --prefix apps/web && npm run build --prefix apps/web"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
