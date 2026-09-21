@@ -41,3 +41,7 @@ test-results
 .cache
 .turbo
 .vite
+
+*.png
+!apps/web/public/**/*.png
+!apps/web/src/assets/**/*.png
