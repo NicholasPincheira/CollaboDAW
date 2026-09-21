@@ -9,10 +9,10 @@ if (!root) {
   throw new Error("Missing #root");
 }
 
-const { catalog, backend } = createSessionCatalog();
+const { catalog, backend, createPresence } = createSessionCatalog();
 
 createRoot(root).render(
   <StrictMode>
-    <App catalog={catalog} backend={backend} />
+    <App catalog={catalog} backend={backend} createPresence={createPresence} />
   </StrictMode>,
 );

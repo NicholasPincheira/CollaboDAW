@@ -2,17 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { AudioLabController } from "../application/audio-lab/audio-lab-controller.ts";
 import { parseHashRoute, routeToHash, type AppRoute } from "../application/navigation/hash-route.ts";
 import type { SessionCatalog, WorkSession } from "../domain/session/session-catalog.ts";
+import type { SessionPresence } from "../domain/session/session-presence.ts";
 import type { SessionBackend } from "../infrastructure/session/create-session-catalog.ts";
+import { isRoomUnlocked, isStudioUnlocked } from "../infrastructure/session/studio-access.ts";
 import { DashboardPage } from "./DashboardPage.tsx";
+import { StudioUnlockGate } from "./StudioUnlockGate.tsx";
 import { StudioWorkspace } from "./StudioWorkspace.tsx";
 
 export function App({
   catalog,
   backend,
+  createPresence,
 }: {
   catalog: SessionCatalog;
   backend: SessionBackend;
+  createPresence: () => SessionPresence;
 }) {
+  const [studioOpen, setStudioOpen] = useState(() => isStudioUnlocked());
   const [route, setRoute] = useState<AppRoute>(() => parseHashRoute(window.location.hash || "#/"));
   const [session, setSession] = useState<WorkSession | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -32,7 +38,10 @@ export function App({
   }, []);
 
   useEffect(() => {
-    if (route.name !== "studio") return;
+    if (!studioOpen || route.name !== "studio") return;
+    if (!isRoomUnlocked(route.sessionId)) {
+      return;
+    }
     let cancelled = false;
     void catalog
       .get(route.sessionId)
@@ -54,7 +63,10 @@ export function App({
     return () => {
       cancelled = true;
     };
-  }, [catalog, route]);
+  }, [catalog, route, studioOpen]);
+
+  const roomLocked =
+    route.name === "studio" && studioOpen && !isRoomUnlocked(route.sessionId);
 
   function navigate(next: AppRoute): void {
     window.location.hash = routeToHash(next);
@@ -65,20 +77,29 @@ export function App({
     }
   }
 
+  if (!studioOpen) {
+    return <StudioUnlockGate onUnlocked={() => setStudioOpen(true)} />;
+  }
+
   if (route.name === "dashboard") {
     return (
       <DashboardPage
         catalog={catalog}
         backend={backend}
         onOpen={(sessionId) => navigate({ name: "studio", sessionId })}
+        onLockStudio={() => setStudioOpen(false)}
       />
     );
   }
 
-  if (loadError) {
+  if (roomLocked || loadError) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-studio-fog">
-        <p role="alert">{loadError}</p>
+        <p role="alert">
+          {roomLocked
+            ? "Room is locked. Unlock it from the dashboard with the room password."
+            : loadError}
+        </p>
         <button
           type="button"
           className="rounded-xl bg-studio-fog px-4 py-2 text-sm font-semibold text-studio-bg"
@@ -104,6 +125,7 @@ export function App({
       controller={controller}
       catalog={catalog}
       session={session}
+      createPresence={createPresence}
       onBack={() => navigate({ name: "dashboard" })}
       onSessionUpdated={setSession}
     />

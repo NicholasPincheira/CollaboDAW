@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createEmptyProject, projectBpm } from "../../domain/project/create-empty-project.ts";
 import type { ProjectDocument } from "../../domain/project/project-document.ts";
+import { hashAccessCode } from "../../domain/session/access-code.ts";
 import type {
   CreateWorkSessionInput,
   SessionCatalog,
@@ -27,6 +28,7 @@ export class SupabaseSessionCatalog implements SessionCatalog {
   constructor(client: SupabaseClient) {
     this.client = client;
   }
+
   async listRecent(limit = 12): Promise<WorkSessionSummary[]> {
     const { data, error } = await this.client
       .from("work_sessions")
@@ -46,6 +48,7 @@ export class SupabaseSessionCatalog implements SessionCatalog {
   async create(input: CreateWorkSessionInput): Promise<WorkSession> {
     const id = crypto.randomUUID();
     const name = input.name.trim() || "Untitled session";
+    const accessCodeHash = await hashAccessCode(input.accessCode);
     const project = createEmptyProject({
       id,
       name,
@@ -62,15 +65,33 @@ export class SupabaseSessionCatalog implements SessionCatalog {
         time_signature_num: project.timeSignature.numerator,
         time_signature_den: project.timeSignature.denominator,
         project_document: project,
+        access_code_hash: accessCodeHash,
       })
-      .select("*")
+      .select("id,name,bpm,sample_rate,time_signature_num,time_signature_den,project_document,created_at,updated_at")
       .single();
     if (error) throw error;
     return rowToSession(data as WorkSessionRow);
   }
 
+  async openWithCode(id: string, accessCode: string): Promise<WorkSession | null> {
+    const accessCodeHash = await hashAccessCode(accessCode);
+    const { data, error } = await this.client
+      .from("work_sessions")
+      .select("id,name,bpm,sample_rate,time_signature_num,time_signature_den,project_document,created_at,updated_at")
+      .eq("id", id)
+      .eq("access_code_hash", accessCodeHash)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return rowToSession(data as WorkSessionRow);
+  }
+
   async get(id: string): Promise<WorkSession | null> {
-    const { data, error } = await this.client.from("work_sessions").select("*").eq("id", id).maybeSingle();
+    const { data, error } = await this.client
+      .from("work_sessions")
+      .select("id,name,bpm,sample_rate,time_signature_num,time_signature_den,project_document,created_at,updated_at")
+      .eq("id", id)
+      .maybeSingle();
     if (error) throw error;
     if (!data) return null;
     return rowToSession(data as WorkSessionRow);
@@ -90,7 +111,7 @@ export class SupabaseSessionCatalog implements SessionCatalog {
         updated_at: new Date().toISOString(),
       })
       .eq("id", session.id)
-      .select("*")
+      .select("id,name,bpm,sample_rate,time_signature_num,time_signature_den,project_document,created_at,updated_at")
       .single();
     if (error) throw error;
     return rowToSession(data as WorkSessionRow);

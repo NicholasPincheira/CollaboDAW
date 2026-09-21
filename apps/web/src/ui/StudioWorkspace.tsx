@@ -3,8 +3,10 @@ import type { AudioLabController } from "../application/audio-lab/audio-lab-cont
 import { diagnosticsFromAudioLab } from "../application/audio-lab/diagnostics-from-lab.ts";
 import { projectBpm } from "../domain/project/create-empty-project.ts";
 import type { SessionCatalog, WorkSession } from "../domain/session/session-catalog.ts";
+import type { SessionPresence } from "../domain/session/session-presence.ts";
 import { AudioLabPanel } from "./AudioLabPanel.tsx";
 import { DiagnosticsPanel } from "./DiagnosticsPanel.tsx";
+import { PresenceHeader } from "./PresenceHeader.tsx";
 import { playShellIntro } from "./shell-motion.ts";
 import { useAudioLab } from "./useAudioLab.ts";
 
@@ -14,12 +16,14 @@ export function StudioWorkspace({
   controller,
   catalog,
   session,
+  createPresence,
   onBack,
   onSessionUpdated,
 }: {
   controller: AudioLabController;
   catalog: SessionCatalog;
   session: WorkSession;
+  createPresence: () => SessionPresence;
   onBack: () => void;
   onSessionUpdated: (session: WorkSession) => void;
 }) {
@@ -77,15 +81,16 @@ export function StudioWorkspace({
           >
             Sessions
           </button>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <p className="text-[10px] tracking-[0.22em] text-studio-amber uppercase">MiniDAW</p>
             <input
-              className="w-full max-w-md truncate bg-transparent text-lg font-semibold outline-none"
+              className="w-full max-w-[12rem] truncate bg-transparent text-lg font-semibold outline-none md:max-w-xs"
               value={name}
               onChange={(event) => setName(event.target.value)}
               aria-label="Session name"
             />
           </div>
+          <PresenceHeader sessionId={session.id} createPresence={createPresence} />
           <div className="flex flex-wrap items-center gap-2 text-xs text-studio-mist">
             <span className="rounded-full border border-studio-line px-2.5 py-1">{bpm} bpm</span>
             <span className="rounded-full border border-studio-line px-2.5 py-1">{signature}</span>

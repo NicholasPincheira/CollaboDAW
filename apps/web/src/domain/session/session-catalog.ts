@@ -18,6 +18,7 @@ export interface WorkSession {
 
 export interface CreateWorkSessionInput {
   name: string;
+  accessCode: string;
   bpm?: number;
   sampleRate?: number;
 }
@@ -25,6 +26,8 @@ export interface CreateWorkSessionInput {
 export interface SessionCatalog {
   listRecent(limit?: number): Promise<WorkSessionSummary[]>;
   create(input: CreateWorkSessionInput): Promise<WorkSession>;
+  /** Opens a room only when the access code matches. */
+  openWithCode(id: string, accessCode: string): Promise<WorkSession | null>;
   get(id: string): Promise<WorkSession | null>;
   save(session: WorkSession): Promise<WorkSession>;
   remove(id: string): Promise<void>;

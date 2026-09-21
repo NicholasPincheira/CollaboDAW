@@ -24,15 +24,16 @@ class MemoryStorage implements Storage {
 }
 
 describe("LocalSessionCatalog", () => {
-  it("creates, lists, opens, saves, and deletes sessions", async () => {
+  it("creates, lists, opens with code, saves, and deletes sessions", async () => {
     const catalog = new LocalSessionCatalog(new MemoryStorage());
-    const created = await catalog.create({ name: "Friday Jam", bpm: 96 });
+    const created = await catalog.create({ name: "Friday Jam", accessCode: "friday-band", bpm: 96 });
     expect(created.project.tempoMap[0]?.bpm).toBe(96);
 
     const recent = await catalog.listRecent();
     expect(recent[0]?.id).toBe(created.id);
 
-    const loaded = await catalog.get(created.id);
+    expect(await catalog.openWithCode(created.id, "wrong-code")).toBeNull();
+    const loaded = await catalog.openWithCode(created.id, "friday-band");
     expect(loaded?.name).toBe("Friday Jam");
 
     const saved = await catalog.save({

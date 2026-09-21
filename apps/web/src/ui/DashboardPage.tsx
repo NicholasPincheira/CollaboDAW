@@ -1,20 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import type { SessionCatalog, WorkSessionSummary } from "../domain/session/session-catalog.ts";
 import type { SessionBackend } from "../infrastructure/session/create-session-catalog.ts";
+import {
+  isRoomUnlocked,
+  lockStudio,
+  markRoomUnlocked,
+} from "../infrastructure/session/studio-access.ts";
 import { playDashboardIntro } from "./shell-motion.ts";
 
 export function DashboardPage({
   catalog,
   backend,
   onOpen,
+  onLockStudio,
 }: {
   catalog: SessionCatalog;
   backend: SessionBackend;
   onOpen: (sessionId: string) => void;
+  onLockStudio: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [recent, setRecent] = useState<WorkSessionSummary[] | null>(null);
   const [name, setName] = useState("Friday Jam");
+  const [roomCode, setRoomCode] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [joiningId, setJoiningId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,11 +71,42 @@ export function DashboardPage({
     setBusy(true);
     setError(null);
     try {
-      const session = await catalog.create({ name });
+      const session = await catalog.create({ name, accessCode: roomCode });
+      markRoomUnlocked(session.id);
       await refresh();
       onOpen(session.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create session.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleOpen(id: string): Promise<void> {
+    if (isRoomUnlocked(id)) {
+      onOpen(id);
+      return;
+    }
+    setJoiningId(id);
+    setJoinCode("");
+    setError(null);
+  }
+
+  async function handleJoinSubmit(): Promise<void> {
+    if (!joiningId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const session = await catalog.openWithCode(joiningId, joinCode);
+      if (!session) {
+        setError("Wrong room password.");
+        return;
+      }
+      markRoomUnlocked(session.id);
+      setJoiningId(null);
+      onOpen(session.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not open session.");
     } finally {
       setBusy(false);
     }
@@ -99,9 +140,21 @@ export function DashboardPage({
               collaboration.
             </p>
           </div>
-          <p className="rounded-full border border-studio-line bg-studio-elevated px-3 py-1 text-xs text-studio-dim">
-            Persistence: {backend === "supabase" ? "Supabase" : "Local browser"}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="rounded-full border border-studio-line bg-studio-elevated px-3 py-1 text-xs text-studio-dim">
+              Persistence: {backend === "supabase" ? "Supabase" : "Local browser"}
+            </p>
+            <button
+              type="button"
+              className="rounded-full border border-studio-line px-3 py-1 text-xs text-studio-mist"
+              onClick={() => {
+                lockStudio();
+                onLockStudio();
+              }}
+            >
+              Lock studio
+            </button>
+          </div>
         </header>
 
         <section
@@ -109,23 +162,36 @@ export function DashboardPage({
           className="mb-10 rounded-2xl border border-studio-line bg-studio-panel/90 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
         >
           <h2 className="text-sm tracking-[0.16em] text-studio-accent uppercase">New session</h2>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
             <input
-              className="min-w-0 flex-1 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
+              className="min-w-0 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Session name"
               aria-label="Session name"
             />
+            <input
+              type="password"
+              className="min-w-0 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
+              value={roomCode}
+              onChange={(event) => setRoomCode(event.target.value)}
+              placeholder="Room password (min 4)"
+              aria-label="Room password"
+              autoComplete="new-password"
+            />
             <button
               type="button"
-              disabled={busy || name.trim().length === 0}
+              disabled={busy || name.trim().length === 0 || roomCode.trim().length < 4}
               onClick={() => void handleCreate()}
               className="rounded-xl bg-studio-fog px-5 py-3 text-sm font-semibold text-studio-bg disabled:opacity-40"
             >
               Create & open
             </button>
           </div>
+          <p className="mt-3 text-xs text-studio-dim">
+            Room passwords are required. Keys for this prototype live in{" "}
+            <code className="text-studio-accent">docs/ACCESS.md</code>.
+          </p>
           {error ? (
             <p className="mt-3 text-sm text-studio-amber" role="alert">
               {error}
@@ -133,11 +199,42 @@ export function DashboardPage({
           ) : null}
           {backend === "local" ? (
             <p className="mt-3 text-xs text-studio-dim">
-              Supabase is not configured yet. Sessions are saved in this browser. Add
-              `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, then run the SQL migration.
+              Supabase is not configured yet. Sessions are saved in this browser.
             </p>
           ) : null}
         </section>
+
+        {joiningId ? (
+          <section className="mb-8 rounded-2xl border border-studio-amber/40 bg-studio-elevated p-5">
+            <h2 className="text-sm tracking-[0.16em] text-studio-amber uppercase">Enter room password</h2>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <input
+                type="password"
+                className="min-w-0 flex-1 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                placeholder="Room password"
+                aria-label="Room password to join"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                disabled={busy || joinCode.trim().length < 4}
+                onClick={() => void handleJoinSubmit()}
+                className="rounded-xl bg-studio-fog px-5 py-3 text-sm font-semibold text-studio-bg disabled:opacity-40"
+              >
+                Unlock & open
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border border-studio-line px-5 py-3 text-sm text-studio-mist"
+                onClick={() => setJoiningId(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <section>
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -157,7 +254,7 @@ export function DashboardPage({
               data-motion="recent"
               className="rounded-2xl border border-dashed border-studio-line px-5 py-10 text-sm text-studio-dim"
             >
-              No sessions yet. Create one to enter the studio.
+              No sessions yet. Create one with a room password to enter the studio.
             </p>
           ) : (
             <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -167,17 +264,18 @@ export function DashboardPage({
                   data-motion="recent"
                   className="rounded-2xl border border-studio-line bg-studio-elevated p-4 transition hover:border-studio-amber/60"
                 >
-                  <button type="button" className="w-full text-left" onClick={() => onOpen(item.id)}>
+                  <button type="button" className="w-full text-left" onClick={() => void handleOpen(item.id)}>
                     <p className="truncate text-lg font-medium">{item.name}</p>
                     <p className="mt-1 text-xs text-studio-dim">
                       {item.bpm} BPM · updated {formatRelative(item.updatedAt)}
+                      {isRoomUnlocked(item.id) ? " · unlocked" : " · locked"}
                     </p>
                   </button>
                   <div className="mt-4 flex gap-2">
                     <button
                       type="button"
                       className="rounded-lg bg-studio-fog px-3 py-1.5 text-xs font-semibold text-studio-bg"
-                      onClick={() => onOpen(item.id)}
+                      onClick={() => void handleOpen(item.id)}
                     >
                       Open
                     </button>
