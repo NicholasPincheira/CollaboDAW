@@ -1,16 +1,21 @@
 # Supabase
 
-1. Create a Supabase project.
-2. Open SQL Editor and run `migrations/20260921_work_sessions.sql`.
-3. Copy the **Project URL** and **anon public** key into `apps/web/.env`:
+Project: `dgsnfagreqzumnhzcuir`  
+URL: `https://dgsnfagreqzumnhzcuir.supabase.co`
+
+## Applied schema
+
+Migration `work_sessions` is applied. Table `public.work_sessions` exists with RLS enabled for prototype anon access.
+
+## Frontend env
 
 ```text
-VITE_SUPABASE_URL=https://xxxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
+VITE_SUPABASE_URL=https://dgsnfagreqzumnhzcuir.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon or publishable key>
 ```
 
-4. Restart `npm run dev` / redeploy the Worker.
+Do **not** put `sb_secret_*` or service-role keys in Vite / Pages / GitHub frontend builds.
 
-Do **not** put `sb_secret_*` or service-role keys in the frontend. Those bypass RLS and must stay server-side only.
+## Local SQL copy
 
-Until env vars exist, the app uses a local `localStorage` session catalog so the dashboard still works.
+`migrations/20260921_work_sessions.sql` remains the source of truth for review.
