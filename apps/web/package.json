@@ -10,8 +10,8 @@
     "lint": "oxlint",
     "test": "vitest run",
     "preview": "vite preview",
-    "deploy:dry-run": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler pages deploy dist --project-name=collabodaw-pages --commit-dirty=true",
+    "deploy:worker": "wrangler deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

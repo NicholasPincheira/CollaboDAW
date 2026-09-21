@@ -4,10 +4,10 @@ Browser mini-DAW experiment. Audio Lab first, then sessions, then collaboration.
 
 ## App
 
-- Live Worker: https://collabodaw.nicholasapz7.workers.dev
+- Pages (GitHub auto-deploy): https://collabodaw-pages.pages.dev
+- Legacy Worker (manual): https://collabodaw.nicholasapz7.workers.dev
 - Source app: `apps/web`
-- Docs: `docs/`
-- Prompts: `prompts/`
+- Deploy docs: `docs/DEPLOY.md`
 - Supabase SQL: `supabase/migrations/`
 
 ## Commands
@@ -26,10 +26,10 @@ npm run deploy
 
 The home screen lists recent work sessions. Opening one enters the studio / Audio Lab.
 
-- Without env vars: sessions persist in `localStorage`.
-- With Supabase: set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` and run `supabase/migrations/20260921_work_sessions.sql`.
+Supabase project `dgsnfagreqzumnhzcuir` is wired via `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`.  
+Table `public.work_sessions` is created. Never put `sb_secret_*` keys in the frontend.
 
-Never put service-role / `sb_secret_*` keys in the frontend. See `supabase/README.md`.
+Push to `main` deploys Pages when GitHub Actions secrets are set (see `docs/DEPLOY.md`).
 
 ## Hardware targets
 
