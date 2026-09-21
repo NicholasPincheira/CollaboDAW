@@ -14,7 +14,7 @@ Repo → Settings → Secrets and variables → Actions:
 | Secret | Value |
 | --- | --- |
 | `CLOUDFLARE_ACCOUNT_ID` | `aeaf61158acd9b193e38f43dc286c8f1` |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token with **Cloudflare Pages — Edit** |
+| `CLOUDFARE_API_TOKEN` | Cloudflare API Token with **Cloudflare Pages — Edit** (note the secret name spelling used in this repo) |
 | `VITE_SUPABASE_URL` | `https://dgsnfagreqzumnhzcuir.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Supabase **anon** / publishable key (not `sb_secret_*`) |
 
