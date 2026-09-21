@@ -42,6 +42,7 @@ test-results
 .turbo
 .vite
 
-*.png
-!apps/web/public/**/*.png
-!apps/web/src/assets/**/*.png
+# Accidental root screenshots
+/screenshot*.png
+/*.png
+!apps/web/**/*.png
