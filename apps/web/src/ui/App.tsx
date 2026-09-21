@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AudioLabController } from "../application/audio-lab/audio-lab-controller.ts";
 import { parseHashRoute, routeToHash, type AppRoute } from "../application/navigation/hash-route.ts";
+import type { ControlPlaneProbe } from "../domain/session/control-plane-probe.ts";
 import type { SessionCatalog, WorkSession } from "../domain/session/session-catalog.ts";
 import type { SessionPresence } from "../domain/session/session-presence.ts";
 import type { SessionBackend } from "../infrastructure/session/create-session-catalog.ts";
@@ -12,10 +13,12 @@ export function App({
   catalog,
   backend,
   createPresence,
+  createControlPlaneProbe,
 }: {
   catalog: SessionCatalog;
   backend: SessionBackend;
   createPresence: () => SessionPresence;
+  createControlPlaneProbe: () => ControlPlaneProbe;
 }) {
   const [hostMode, setHostMode] = useState(() => isStudioUnlocked());
   const [route, setRoute] = useState<AppRoute>(() => parseHashRoute(window.location.hash || "#/"));
@@ -121,6 +124,7 @@ export function App({
       catalog={catalog}
       session={session}
       createPresence={createPresence}
+      createControlPlaneProbe={createControlPlaneProbe}
       onBack={() => navigate({ name: "dashboard" })}
       onSessionUpdated={setSession}
     />

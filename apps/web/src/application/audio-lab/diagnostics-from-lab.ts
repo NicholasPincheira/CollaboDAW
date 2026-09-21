@@ -1,3 +1,4 @@
+import type { ControlPlaneMetrics } from "../../domain/session/control-plane-probe.ts";
 import type { AudioLabSnapshot } from "./audio-lab-controller.ts";
 import {
   NOT_MEASURED,
@@ -6,7 +7,10 @@ import {
   type DiagnosticReading,
 } from "../bootstrap-diagnostics.ts";
 
-export function diagnosticsFromAudioLab(snapshot: AudioLabSnapshot): DiagnosticsSnapshot {
+export function diagnosticsFromAudioLab(
+  snapshot: AudioLabSnapshot,
+  control: ControlPlaneMetrics | null = null,
+): DiagnosticsSnapshot {
   const profileLabel = snapshot.profile
     ? `${snapshot.profile.manufacturer} ${snapshot.profile.model}`
     : snapshot.inputDeviceId
@@ -76,18 +80,48 @@ export function diagnosticsFromAudioLab(snapshot: AudioLabSnapshot): Diagnostics
       value: `${outputLabel} (${snapshot.sinkStatus})`,
       group: "device",
     },
-    { id: "rtt", label: "Network RTT", value: NOT_MEASURED, group: "network" },
-    { id: "jitter", label: "Jitter", value: NOT_MEASURED, group: "network" },
-    { id: "packet-loss", label: "Packet loss", value: NOT_MEASURED, group: "network" },
-    { id: "sync-offset", label: "Sync offset", value: NOT_MEASURED, group: "sync" },
-    { id: "drift", label: "Drift", value: NOT_MEASURED, group: "sync" },
+    {
+      id: "rtt",
+      label: "Control RTT (Supabase)",
+      value: formatProbeMs(control?.rttMs ?? null),
+      group: "network",
+    },
+    {
+      id: "jitter",
+      label: "Control jitter",
+      value: formatProbeMs(control?.jitterMs ?? null),
+      group: "network",
+    },
+    {
+      id: "packet-loss",
+      label: "Control packet loss",
+      value:
+        control?.packetLossPct === null || control?.packetLossPct === undefined
+          ? NOT_MEASURED
+          : `${control.packetLossPct.toFixed(1)}%`,
+      group: "network",
+    },
+    {
+      id: "sync-offset",
+      label: "Sync offset",
+      value: "not measured (needs WebRTC SessionClock)",
+      group: "sync",
+    },
+    {
+      id: "drift",
+      label: "Drift",
+      value: "not measured (needs WebRTC SessionClock)",
+      group: "sync",
+    },
   ];
 
   return {
     notices: [
       ...snapshot.notices,
       `setSinkId: ${snapshot.capabilities.setSinkId ? "available" : "unavailable"}`,
+      control?.lastError ? `Control probe: ${control.lastError}` : "Control probe ready (Measure network).",
       snapshot.error ? `Error: ${snapshot.error.message}` : "Audio Lab errors will appear here.",
+      "Supabase free tier: keep probes small — no PCM in Postgres, presence/control only.",
     ],
     readings,
   };
@@ -101,6 +135,11 @@ function formatHz(value: number | null): string {
 function formatMs(value: number | null): string {
   if (value === null) return NOT_MEASURED;
   return `${(value * 1000).toFixed(2)} ms`;
+}
+
+function formatProbeMs(value: number | null): string {
+  if (value === null) return NOT_MEASURED;
+  return `${value.toFixed(1)} ms`;
 }
 
 function formatRoundTrip(base: number | null, output: number | null): string {

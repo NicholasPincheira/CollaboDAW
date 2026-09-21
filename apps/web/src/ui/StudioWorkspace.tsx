@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { AudioLabController } from "../application/audio-lab/audio-lab-controller.ts";
 import { diagnosticsFromAudioLab } from "../application/audio-lab/diagnostics-from-lab.ts";
+import {
+  autoTuneMonitorPath,
+  buildDebugBundle,
+  type AutoTuneReport,
+} from "../application/audio-lab/latency-lab.ts";
 import { projectBpm } from "../domain/project/create-empty-project.ts";
+import type { ControlPlaneProbe, ControlPlaneMetrics } from "../domain/session/control-plane-probe.ts";
+import { emptyControlPlaneMetrics } from "../domain/session/control-plane-probe.ts";
 import type { SessionCatalog, WorkSession } from "../domain/session/session-catalog.ts";
 import type { SessionPresence } from "../domain/session/session-presence.ts";
 import type { TempoMapEntry } from "../domain/project/project-document.ts";
@@ -20,6 +27,7 @@ export function StudioWorkspace({
   catalog,
   session,
   createPresence,
+  createControlPlaneProbe,
   onBack,
   onSessionUpdated,
 }: {
@@ -27,12 +35,17 @@ export function StudioWorkspace({
   catalog: SessionCatalog;
   session: WorkSession;
   createPresence: () => SessionPresence;
+  createControlPlaneProbe: () => ControlPlaneProbe;
   onBack: () => void;
   onSessionUpdated: (session: WorkSession) => void;
 }) {
   const shellRef = useRef<HTMLElement>(null);
   const lab = useAudioLab(controller);
-  const diagnostics = diagnosticsFromAudioLab(lab);
+  const [control, setControl] = useState<ControlPlaneMetrics>(emptyControlPlaneMetrics);
+  const [autoTune, setAutoTune] = useState<AutoTuneReport | null>(null);
+  const [labBusy, setLabBusy] = useState(false);
+  const probeRef = useRef<ControlPlaneProbe | null>(null);
+  const diagnostics = diagnosticsFromAudioLab(lab, control);
   const [name, setName] = useState(session.project.name);
   const [bpm, setBpm] = useState(projectBpm(session.project));
   const [numerator, setNumerator] = useState(session.project.timeSignature.numerator);
@@ -68,8 +81,70 @@ export function StudioWorkspace({
   }, [controller]);
 
   useEffect(() => {
+    const probe = createControlPlaneProbe();
+    probeRef.current = probe;
+    const stop = probe.subscribe(setControl);
+    void probe.start(session.id).catch((error: unknown) => {
+      setControl({
+        ...emptyControlPlaneMetrics(),
+        lastError: error instanceof Error ? error.message : "Probe failed to start.",
+        updatedAt: new Date().toISOString(),
+      });
+    });
+    return () => {
+      stop();
+      void probe.stop();
+      probeRef.current = null;
+    };
+  }, [createControlPlaneProbe, session.id]);
+
+  useEffect(() => {
     controller.updateClickTempo(bpm, numerator);
   }, [bpm, numerator, controller]);
+
+  async function handleMeasureNetwork(): Promise<void> {
+    setLabBusy(true);
+    try {
+      await probeRef.current?.measure(8);
+    } finally {
+      setLabBusy(false);
+    }
+  }
+
+  async function handleAutoTune(): Promise<void> {
+    setLabBusy(true);
+    try {
+      const report = await autoTuneMonitorPath(controller);
+      setAutoTune(report);
+    } finally {
+      setLabBusy(false);
+    }
+  }
+
+  async function handleCopyDebug(): Promise<void> {
+    const json = buildDebugBundle({
+      lab,
+      control,
+      autoTune,
+      sessionId: session.id,
+    });
+    try {
+      await navigator.clipboard.writeText(json);
+      setSaveError(null);
+      setAutoTune((prev) =>
+        prev
+          ? { ...prev, note: `${prev.note} · debug JSON copied.` }
+          : {
+              tried: [],
+              best: null,
+              applied: false,
+              note: "Debug JSON copied to clipboard — paste it here in chat.",
+            },
+      );
+    } catch {
+      setSaveError("Could not copy debug JSON.");
+    }
+  }
 
   function buildProject() {
     const map = tempoMap.length > 0 ? [...tempoMap] : [{ startBeat: 0, bpm }];
@@ -431,7 +506,15 @@ export function StudioWorkspace({
               {drawer === "lab" ? (
                 <AudioLabPanel controller={controller} snapshot={lab} compact />
               ) : (
-                <DiagnosticsPanel snapshot={diagnostics} />
+                <DiagnosticsPanel
+                  snapshot={diagnostics}
+                  control={control}
+                  autoTune={autoTune}
+                  busy={labBusy}
+                  onMeasureNetwork={() => void handleMeasureNetwork()}
+                  onAutoTune={() => void handleAutoTune()}
+                  onCopyDebug={() => void handleCopyDebug()}
+                />
               )}
             </div>
           ) : null}
