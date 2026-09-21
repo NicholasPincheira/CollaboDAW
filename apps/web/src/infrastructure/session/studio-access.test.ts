@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_STUDIO_ACCESS_KEY,
-  isStudioUnlocked,
-  lockStudio,
-  unlockStudio,
-} from "./studio-access.ts";
+import { isHostCreateEnabled, isStudioUnlocked, lockStudio, unlockStudio } from "./studio-access.ts";
 
 class MemoryStorage implements Storage {
   private data = new Map<string, string>();
@@ -29,11 +24,13 @@ class MemoryStorage implements Storage {
 }
 
 describe("studio access", () => {
-  it("unlocks with the configured studio key", () => {
+  it("requires a configured host key of at least 8 chars", () => {
     const storage = new MemoryStorage();
-    expect(unlockStudio("nope", {}, storage)).toBe(false);
-    expect(isStudioUnlocked(storage)).toBe(false);
-    expect(unlockStudio(DEFAULT_STUDIO_ACCESS_KEY, {}, storage)).toBe(true);
+    expect(isHostCreateEnabled({})).toBe(false);
+    expect(unlockStudio("CollaboDAW-host-7kQ2mN", {}, storage)).toBe(false);
+    expect(
+      unlockStudio("CollaboDAW-host-7kQ2mN", { VITE_STUDIO_ACCESS_KEY: "CollaboDAW-host-7kQ2mN" }, storage),
+    ).toBe(true);
     expect(isStudioUnlocked(storage)).toBe(true);
     lockStudio(storage);
     expect(isStudioUnlocked(storage)).toBe(false);

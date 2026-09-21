@@ -1,5 +1,5 @@
-/** Default studio unlock for prototype Pages URL. Override with VITE_STUDIO_ACCESS_KEY. */
-export const DEFAULT_STUDIO_ACCESS_KEY = "minidaw-studio-2026";
+/** Host unlock must come from build env — no public default in the client bundle. */
+export const DEFAULT_STUDIO_ACCESS_KEY = "";
 
 const STUDIO_UNLOCK_STORAGE = "minidaw.studio-unlocked";
 const ROOM_UNLOCK_PREFIX = "minidaw.room-unlocked.";
@@ -8,8 +8,13 @@ const DISPLAY_NAME_KEY = "minidaw.display-name";
 export function readConfiguredStudioAccessKey(
   env: ImportMetaEnv | Record<string, string | undefined> = import.meta.env,
 ): string {
-  const fromEnv = env.VITE_STUDIO_ACCESS_KEY?.trim();
-  return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_STUDIO_ACCESS_KEY;
+  return env.VITE_STUDIO_ACCESS_KEY?.trim() ?? "";
+}
+
+export function isHostCreateEnabled(
+  env: ImportMetaEnv | Record<string, string | undefined> = import.meta.env,
+): boolean {
+  return readConfiguredStudioAccessKey(env).length >= 8;
 }
 
 export function isStudioUnlocked(storage: Storage | null = safeSessionStorage()): boolean {
@@ -21,7 +26,9 @@ export function unlockStudio(
   env: ImportMetaEnv | Record<string, string | undefined> = import.meta.env,
   storage: Storage | null = safeSessionStorage(),
 ): boolean {
-  const ok = candidate.trim() === readConfiguredStudioAccessKey(env);
+  const expected = readConfiguredStudioAccessKey(env);
+  if (!expected || expected.length < 8) return false;
+  const ok = candidate.trim() === expected;
   if (ok) storage?.setItem(STUDIO_UNLOCK_STORAGE, "1");
   return ok;
 }

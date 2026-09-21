@@ -44,12 +44,16 @@ Observed implementation limits (2026-09-21):
 
 ## Milestone 2 — Local MiniDAW
 
-- track model
-- input routing
-- gain/pan/mute/solo
-- master
-- click
-- transport
+Status: Started (usable essentials 2026-09-21)
+
+- editable BPM / time signature / tempo map sections
+- local click Play/Stop on AudioContext
+- mute / solo / gain on input tracks → monitor
+- dual output (primary sink + secondary `<audio>` sink)
+- latency presets (live/record/rehearsal/mix)
+- host-only create; public join with room id + password
+
+Still pending: rewind/record, clip timeline drag-drop, shared transport over Realtime.
 
 ## Milestone 3 — Effects
 

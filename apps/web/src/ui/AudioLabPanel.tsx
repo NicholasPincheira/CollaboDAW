@@ -35,7 +35,7 @@ export function AudioLabPanel({
         </p>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <label className="block text-sm">
           <span className="mb-1 block text-studio-mist">Input device</span>
           <select
@@ -55,8 +55,8 @@ export function AudioLabPanel({
 
         <label className="block text-sm">
           <span className="mb-1 block text-studio-mist">
-            Output device
-            {!snapshot.capabilities.setSinkId ? " (browser default only)" : ""}
+            Primary output (e.g. interface)
+            {!snapshot.capabilities.setSinkId ? " — browser default only" : ""}
           </span>
           <select
             className={selectClass}
@@ -71,7 +71,48 @@ export function AudioLabPanel({
               </option>
             ))}
           </select>
+          <span className="mt-1 block text-[11px] text-studio-dim">Sink: {snapshot.sinkStatus}</span>
         </label>
+
+        <label className="block text-sm">
+          <span className="mb-1 block text-studio-mist">Secondary output (e.g. headphones)</span>
+          <select
+            className={selectClass}
+            value={snapshot.secondaryOutputDeviceId ?? ""}
+            disabled={busy || !snapshot.capabilities.setSinkId}
+            onChange={(event) => controller.selectSecondaryOutput(event.target.value)}
+          >
+            <option value="">Off</option>
+            {outputs.map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-studio-dim">
+            Dual: {snapshot.secondarySinkStatus} · not sample-locked across devices
+          </span>
+        </label>
+      </div>
+
+      <div className="mt-4">
+        <p className="mb-2 text-xs tracking-[0.14em] text-studio-dim uppercase">Latency preset</p>
+        <div className="flex flex-wrap gap-2">
+          {(["live", "record", "rehearsal", "mix"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={`${buttonClass} ${snapshot.latencyMode === mode ? "border-studio-accent text-studio-accent" : ""}`}
+              disabled={busy}
+              onClick={() => void controller.setLatencyMode(mode)}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-studio-dim">
+          Changing preset recreates AudioContext (`latencyHint`). Prefer Live for monitoring tests.
+        </p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">

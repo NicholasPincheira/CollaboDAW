@@ -1,30 +1,33 @@
 # Access keys — MiniDAW Collaborative
 
-Prototype gates (not full Auth). Change these before sharing widely.
+Prototype gates (not full Auth). **Do not commit real host keys.**
 
-## Studio dashboard unlock
+## Host key (create rooms)
 
-Required to open the sessions dashboard on the public Pages URL.
+Set only in:
 
-| Key | Value |
+- local `apps/web/.env` as `VITE_STUDIO_ACCESS_KEY=...`
+- Cloudflare Pages → Environment variables → same name
+
+Minimum 8 characters. Without it, **Create session is disabled** (join still works).
+
+Copy your host key here for yourself (this file is tracked — prefer a password manager if the repo is public):
+
+| Key | Where |
 | --- | --- |
-| Studio unlock | `minidaw-studio-2026` |
+| Host / studio unlock | Cloudflare Pages `VITE_STUDIO_ACCESS_KEY` + local `.env` |
 
-Override in build env as `VITE_STUDIO_ACCESS_KEY` (Pages + local `.env`).
+Suggested private value (rotate anytime): `CollaboDAW-host-7kQ2mN`
 
-Stored in `sessionStorage` after unlock (clears when the browser tab session ends).
-
-## Room / session password
-
-Every session needs a room password to create and to open.
+## Room passwords
 
 | Context | Value |
 | --- | --- |
 | You choose when creating | e.g. `friday-band` |
 | Migrated legacy rooms | `minidaw-room` |
 
-Codes are stored as SHA-256 hashes in Postgres (`access_code_hash`). The plaintext is never listed in the dashboard.
+Anyone with a room id + room password can join. Only hosts with the studio unlock can create.
 
 ## Presence display name
 
-Your collaborator name is kept in `localStorage` as `minidaw.display-name` and broadcast with Supabase Realtime Presence while you are inside a room.
+Stored in `localStorage` as `minidaw.display-name`.

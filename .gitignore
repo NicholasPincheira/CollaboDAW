@@ -1,7 +1,43 @@
+# Dependencies & build
 node_modules
 dist
+dist-ssr
 .wrangler
+.mf
+.dev.vars
+*.tsbuildinfo
+
+# Env / secrets (keep only committed examples)
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+
+# Local / editor / OS
 *.local
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Logs & coverage
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+coverage
+.nyc_output
+playwright-report
+test-results
+
+# Caches
+.cache
+.turbo
+.vite

@@ -6,7 +6,6 @@ import type { SessionPresence } from "../domain/session/session-presence.ts";
 import type { SessionBackend } from "../infrastructure/session/create-session-catalog.ts";
 import { isRoomUnlocked, isStudioUnlocked } from "../infrastructure/session/studio-access.ts";
 import { DashboardPage } from "./DashboardPage.tsx";
-import { StudioUnlockGate } from "./StudioUnlockGate.tsx";
 import { StudioWorkspace } from "./StudioWorkspace.tsx";
 
 export function App({
@@ -18,7 +17,7 @@ export function App({
   backend: SessionBackend;
   createPresence: () => SessionPresence;
 }) {
-  const [studioOpen, setStudioOpen] = useState(() => isStudioUnlocked());
+  const [hostMode, setHostMode] = useState(() => isStudioUnlocked());
   const [route, setRoute] = useState<AppRoute>(() => parseHashRoute(window.location.hash || "#/"));
   const [session, setSession] = useState<WorkSession | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -38,7 +37,7 @@ export function App({
   }, []);
 
   useEffect(() => {
-    if (!studioOpen || route.name !== "studio") return;
+    if (route.name !== "studio") return;
     if (!isRoomUnlocked(route.sessionId)) {
       return;
     }
@@ -63,10 +62,7 @@ export function App({
     return () => {
       cancelled = true;
     };
-  }, [catalog, route, studioOpen]);
-
-  const roomLocked =
-    route.name === "studio" && studioOpen && !isRoomUnlocked(route.sessionId);
+  }, [catalog, route]);
 
   function navigate(next: AppRoute): void {
     window.location.hash = routeToHash(next);
@@ -77,20 +73,19 @@ export function App({
     }
   }
 
-  if (!studioOpen) {
-    return <StudioUnlockGate onUnlocked={() => setStudioOpen(true)} />;
-  }
-
   if (route.name === "dashboard") {
     return (
       <DashboardPage
         catalog={catalog}
         backend={backend}
+        hostMode={hostMode}
+        onHostModeChange={setHostMode}
         onOpen={(sessionId) => navigate({ name: "studio", sessionId })}
-        onLockStudio={() => setStudioOpen(false)}
       />
     );
   }
+
+  const roomLocked = route.name === "studio" && !isRoomUnlocked(route.sessionId);
 
   if (roomLocked || loadError) {
     return (

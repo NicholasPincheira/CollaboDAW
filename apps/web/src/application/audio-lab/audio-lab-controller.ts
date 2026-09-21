@@ -18,7 +18,12 @@ import type { BrowserAudioCapabilities } from "../../infrastructure/audio/detect
 import { detectBrowserAudioCapabilities } from "../../infrastructure/audio/detect-browser-capabilities.ts";
 import { BrowserAudioDeviceManager } from "../../infrastructure/audio/browser-audio-device-manager.ts";
 import { LocalChannelMappingOverrideStore } from "../../infrastructure/audio/local-mapping-overrides.ts";
-import { WebAudioLabEngine } from "../../infrastructure/audio/web-audio-lab-engine.ts";
+import { LocalClickScheduler } from "../../infrastructure/audio/local-click-scheduler.ts";
+import {
+  WebAudioLabEngine,
+  type ChannelMonitorState,
+  type LatencyMode,
+} from "../../infrastructure/audio/web-audio-lab-engine.ts";
 
 export interface AudioLabSnapshot {
   status: AudioLabStatus;
@@ -27,12 +32,17 @@ export interface AudioLabSnapshot {
   devices: AudioDeviceDescriptor[];
   inputDeviceId: string | null;
   outputDeviceId: string | null;
+  secondaryOutputDeviceId: string | null;
   profile: AudioHardwareProfile | null;
   channelMap: ChannelMap;
   diagnostics: AudioDiagnostics;
   meters: ChannelMeterReading[];
   monitoring: boolean;
+  channelMonitors: ChannelMonitorState[];
+  latencyMode: LatencyMode;
   sinkStatus: "default" | "applied" | "unsupported" | "failed";
+  secondarySinkStatus: "off" | "applied" | "unsupported" | "failed";
+  clickPlaying: boolean;
   learn: LearnInputState;
   notices: string[];
 }
@@ -42,6 +52,7 @@ type Listener = () => void;
 export class AudioLabController {
   private readonly devices: BrowserAudioDeviceManager;
   private readonly engine: WebAudioLabEngine;
+  private readonly click: LocalClickScheduler;
   private readonly registry: StaticAudioDeviceProfileRegistry;
   private readonly mapper: DefaultChannelMapper;
   private readonly overrides: ChannelMappingOverrideStore;
@@ -60,6 +71,10 @@ export class AudioLabController {
   }) {
     this.devices = options?.devices ?? new BrowserAudioDeviceManager();
     this.engine = options?.engine ?? new WebAudioLabEngine();
+    this.click = new LocalClickScheduler(
+      () => this.engine.getAudioContext(),
+      () => this.engine.getMonitorTap(),
+    );
     this.registry = new StaticAudioDeviceProfileRegistry();
     this.mapper = new DefaultChannelMapper();
     this.overrides = options?.overrides ?? new LocalChannelMappingOverrideStore();
@@ -71,16 +86,22 @@ export class AudioLabController {
       devices: [],
       inputDeviceId: null,
       outputDeviceId: null,
+      secondaryOutputDeviceId: null,
       profile: null,
       channelMap: { mode: "unmeasured", requiresRuntimeValidation: true, entries: [] },
       diagnostics: emptyDiagnostics(),
       meters: [],
       monitoring: false,
+      channelMonitors: [],
+      latencyMode: "live",
       sinkStatus: "default",
+      secondarySinkStatus: "off",
+      clickPlaying: false,
       learn: idleLearn(),
       notices: [
         "Software monitoring can feedback through speakers. Prefer headphones or hardware direct monitor.",
-        "LiveKit, WebRTC, Supabase, and recording stay outside this slice.",
+        "Dual output uses primary AudioContext sink + secondary <audio> sink (Chromium). Devices are not sample-locked.",
+        "LiveKit / WebRTC audio sync is still outside this slice; presence uses Supabase Realtime.",
       ],
     };
   }
@@ -165,11 +186,61 @@ export class AudioLabController {
   selectOutput(deviceId: string): void {
     this.devices.selectOutput(deviceId);
     this.patch({ outputDeviceId: deviceId || null });
-    if (this.snapshot.status === "running" && deviceId) {
+    if (this.snapshot.status === "running") {
       void this.engine.setSinkId(deviceId).then((result) => {
         this.patch({ sinkStatus: result === "applied" ? "applied" : result });
       });
     }
+  }
+
+  selectSecondaryOutput(deviceId: string): void {
+    this.patch({ secondaryOutputDeviceId: deviceId || null });
+    if (this.snapshot.status === "running") {
+      void this.engine.setSecondarySinkId(deviceId).then((result) => {
+        this.patch({
+          secondarySinkStatus:
+            !deviceId ? "off" : result === "applied" ? "applied" : result,
+        });
+      });
+    }
+  }
+
+  async setLatencyMode(mode: LatencyMode): Promise<void> {
+    const wasRunning = this.snapshot.status === "running";
+    this.click.stop();
+    await this.engine.setLatencyMode(mode);
+    this.patch({ latencyMode: mode, clickPlaying: false });
+    if (wasRunning) {
+      await this.startAudio();
+    }
+  }
+
+  setChannelMonitor(streamChannel: number, state: Partial<ChannelMonitorState>): void {
+    this.engine.setChannelMonitor(streamChannel, state);
+    this.patch({ channelMonitors: this.engine.getChannelMonitors() });
+  }
+
+  startClick(bpm: number, beatsPerBar: number): void {
+    try {
+      this.click.start(bpm, beatsPerBar);
+      this.patch({ clickPlaying: true, error: null });
+    } catch (error) {
+      this.patch({
+        error: {
+          code: "unknown",
+          message: error instanceof Error ? error.message : "Could not start click.",
+        },
+      });
+    }
+  }
+
+  stopClick(): void {
+    this.click.stop();
+    this.patch({ clickPlaying: false });
+  }
+
+  updateClickTempo(bpm: number, beatsPerBar: number): void {
+    this.click.setTempo(bpm, beatsPerBar);
   }
 
   async startAudio(): Promise<void> {
@@ -184,7 +255,9 @@ export class AudioLabController {
 
     this.patch({ status: "starting", error: null });
     try {
+      this.click.stop();
       await this.engine.stop();
+      await this.engine.setLatencyMode(this.snapshot.latencyMode);
       const stream = await this.devices.openInputStream(inputId, 2);
       await this.engine.attachInput(stream);
       await this.engine.start();
@@ -216,6 +289,12 @@ export class AudioLabController {
         sinkStatus = "unsupported";
       }
 
+      let secondarySinkStatus: AudioLabSnapshot["secondarySinkStatus"] = "off";
+      if (this.snapshot.secondaryOutputDeviceId) {
+        const result = await this.engine.setSecondarySinkId(this.snapshot.secondaryOutputDeviceId);
+        secondarySinkStatus = result === "applied" ? "applied" : result;
+      }
+
       this.engine.setMonitoring(this.snapshot.monitoring);
       this.ensurePeakScratch(channelCount);
       this.patch({
@@ -223,6 +302,9 @@ export class AudioLabController {
         channelMap,
         diagnostics: this.engine.getDiagnostics(),
         sinkStatus,
+        secondarySinkStatus,
+        channelMonitors: this.engine.getChannelMonitors(),
+        clickPlaying: false,
         meters: entriesToMeters(entries, channelCount, this.peakScratch),
       });
     } catch (error) {
@@ -232,6 +314,8 @@ export class AudioLabController {
         error: toLabError(error),
         diagnostics: emptyDiagnostics(),
         meters: [],
+        channelMonitors: [],
+        clickPlaying: false,
       });
     }
   }
@@ -239,11 +323,14 @@ export class AudioLabController {
   async stopAudio(): Promise<void> {
     this.patch({ status: "stopping" });
     this.cancelLearn();
+    this.click.stop();
     await this.engine.stop();
     this.patch({
       status: "ready",
       diagnostics: emptyDiagnostics(),
       meters: [],
+      channelMonitors: [],
+      clickPlaying: false,
       error: null,
     });
   }
@@ -377,6 +464,7 @@ export class AudioLabController {
 
   dispose(): void {
     this.cancelLearn();
+    this.click.dispose();
     this.unbindDeviceChange?.();
     this.unbindDeviceChange = null;
     void this.engine.stop();

@@ -1,33 +1,79 @@
 import type { AudioDiagnostics, AudioEngine, AudioEngineState } from "../../domain/audio/audio-engine.ts";
 import { measurePeak } from "../../domain/audio/signal-analysis.ts";
 
-type SinkResult = "applied" | "unsupported" | "failed";
+export type LatencyMode = "live" | "record" | "rehearsal" | "mix";
+export type SinkResult = "applied" | "unsupported" | "failed";
+
+export interface ChannelMonitorState {
+  muted: boolean;
+  solo: boolean;
+  gain: number;
+}
 
 interface ChannelNode {
   analyser: AnalyserNode;
   monitorGain: GainNode;
   timeDomain: Float32Array;
+  muted: boolean;
+  solo: boolean;
+  userGain: number;
+}
+
+function latencyHintFor(mode: LatencyMode): AudioContextLatencyCategory {
+  if (mode === "mix") return "playback";
+  if (mode === "rehearsal") return "balanced";
+  return "interactive";
 }
 
 /**
  * Local Audio Lab graph:
- * MediaStreamSource -> ChannelSplitter -> [Analyser + monitor Gain] -> Destination
+ * MediaStreamSource -> ChannelSplitter -> [Analyser + monitor Gain]
+ *   -> masterGain -> destination (primary sink)
+ *                └-> MediaStreamDestination -> <audio> (secondary sink)
  */
 export class WebAudioLabEngine implements AudioEngine {
   private context: AudioContext | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private splitter: ChannelSplitterNode | null = null;
+  private masterGain: GainNode | null = null;
+  private secondaryDest: MediaStreamAudioDestinationNode | null = null;
+  private secondaryAudio: HTMLAudioElement | null = null;
   private stream: MediaStream | null = null;
   private channels: ChannelNode[] = [];
   private monitoring = false;
   private exposedChannelCount = 0;
   private endedHandler: (() => void) | null = null;
+  private latencyMode: LatencyMode = "live";
+  private primarySinkId = "";
+  private secondarySinkId = "";
 
   get state(): AudioEngineState {
     if (!this.context) return "idle";
     if (this.context.state === "closed") return "closed";
     if (this.context.state === "suspended") return "suspended";
     return this.source ? "running" : "idle";
+  }
+
+  getAudioContext(): AudioContext | null {
+    return this.context && this.context.state !== "closed" ? this.context : null;
+  }
+
+  getMonitorTap(): AudioNode | null {
+    return this.masterGain;
+  }
+
+  getLatencyMode(): LatencyMode {
+    return this.latencyMode;
+  }
+
+  async setLatencyMode(mode: LatencyMode): Promise<void> {
+    if (this.latencyMode === mode) return;
+    this.latencyMode = mode;
+    // Context must be recreated for a new latencyHint; caller should restart capture.
+    if (this.context && this.context.state !== "closed") {
+      await this.context.close();
+      this.context = null;
+    }
   }
 
   async start(): Promise<void> {
@@ -40,10 +86,12 @@ export class WebAudioLabEngine implements AudioEngine {
   async stop(): Promise<void> {
     this.detachGraph();
     this.stopStreamTracks();
+    this.teardownSecondary();
     if (this.context && this.context.state !== "closed") {
       await this.context.close();
     }
     this.context = null;
+    this.masterGain = null;
   }
 
   async attachInput(stream: MediaStream): Promise<void> {
@@ -53,6 +101,13 @@ export class WebAudioLabEngine implements AudioEngine {
     const context = this.ensureContext();
     if (context.state === "suspended") {
       await context.resume();
+    }
+
+    if (!this.masterGain || this.masterGain.context !== context) {
+      this.masterGain = context.createGain();
+      this.masterGain.gain.value = 1;
+      this.masterGain.connect(context.destination);
+      await this.ensureSecondaryTap(context);
     }
 
     this.stream = stream;
@@ -84,11 +139,24 @@ export class WebAudioLabEngine implements AudioEngine {
       const timeDomain = new Float32Array(analyser.fftSize);
       this.splitter.connect(analyser, index);
       this.splitter.connect(monitorGain, index);
-      monitorGain.connect(context.destination);
-      this.channels.push({ analyser, monitorGain, timeDomain });
+      monitorGain.connect(this.masterGain!);
+      this.channels.push({
+        analyser,
+        monitorGain,
+        timeDomain,
+        muted: false,
+        solo: false,
+        userGain: 1,
+      });
     }
 
     this.applyMonitoring();
+    if (this.primarySinkId) {
+      await this.setSinkId(this.primarySinkId);
+    }
+    if (this.secondarySinkId) {
+      await this.setSecondarySinkId(this.secondarySinkId);
+    }
   }
 
   setMonitoring(enabled: boolean): void {
@@ -100,11 +168,27 @@ export class WebAudioLabEngine implements AudioEngine {
     return this.monitoring;
   }
 
+  setChannelMonitor(index: number, state: Partial<ChannelMonitorState>): void {
+    const channel = this.channels[index];
+    if (!channel) return;
+    if (typeof state.muted === "boolean") channel.muted = state.muted;
+    if (typeof state.solo === "boolean") channel.solo = state.solo;
+    if (typeof state.gain === "number") channel.userGain = clamp01(state.gain);
+    this.applyMonitoring();
+  }
+
+  getChannelMonitors(): ChannelMonitorState[] {
+    return this.channels.map((channel) => ({
+      muted: channel.muted,
+      solo: channel.solo,
+      gain: channel.userGain,
+    }));
+  }
+
   getExposedChannelCount(): number {
     return this.exposedChannelCount;
   }
 
-  /** Fills `out` with peak levels for each exposed stream channel. */
   readPeaks(out: Float32Array): void {
     const count = Math.min(out.length, this.channels.length);
     for (let i = 0; i < count; i += 1) {
@@ -145,6 +229,7 @@ export class WebAudioLabEngine implements AudioEngine {
   }
 
   async setSinkId(deviceId: string): Promise<SinkResult> {
+    this.primarySinkId = deviceId;
     const context = this.ensureContext() as AudioContext & {
       setSinkId?: (sinkId: string) => Promise<void>;
     };
@@ -152,10 +237,53 @@ export class WebAudioLabEngine implements AudioEngine {
       return "unsupported";
     }
     try {
-      await context.setSinkId(deviceId);
+      await context.setSinkId(deviceId || "");
       return "applied";
     } catch {
       return "failed";
+    }
+  }
+
+  async setSecondarySinkId(deviceId: string): Promise<SinkResult> {
+    this.secondarySinkId = deviceId;
+    const context = this.ensureContext();
+    await this.ensureSecondaryTap(context);
+
+    if (!this.secondaryAudio) return "failed";
+    if (!deviceId) {
+      this.secondaryAudio.pause();
+      this.secondaryAudio.srcObject = null;
+      return "applied";
+    }
+
+    const element = this.secondaryAudio as HTMLAudioElement & {
+      setSinkId?: (sinkId: string) => Promise<void>;
+    };
+    if (typeof element.setSinkId !== "function") {
+      return "unsupported";
+    }
+    try {
+      if (this.secondaryDest) {
+        element.srcObject = this.secondaryDest.stream;
+      }
+      await element.setSinkId(deviceId);
+      await element.play().catch(() => undefined);
+      return "applied";
+    } catch {
+      return "failed";
+    }
+  }
+
+  private async ensureSecondaryTap(context: AudioContext): Promise<void> {
+    if (!this.masterGain) return;
+    if (!this.secondaryDest || this.secondaryDest.context !== context) {
+      this.secondaryDest?.disconnect();
+      this.secondaryDest = context.createMediaStreamDestination();
+      this.masterGain.connect(this.secondaryDest);
+    }
+    if (!this.secondaryAudio) {
+      this.secondaryAudio = new Audio();
+      this.secondaryAudio.autoplay = true;
     }
   }
 
@@ -163,13 +291,22 @@ export class WebAudioLabEngine implements AudioEngine {
     if (this.context && this.context.state !== "closed") {
       return this.context;
     }
-    this.context = new AudioContext({ latencyHint: "interactive" });
+    this.context = new AudioContext({ latencyHint: latencyHintFor(this.latencyMode) });
+    this.masterGain = this.context.createGain();
+    this.masterGain.gain.value = 1;
+    this.masterGain.connect(this.context.destination);
+    void this.ensureSecondaryTap(this.context);
     return this.context;
   }
 
   private applyMonitoring(): void {
-    const value = this.monitoring ? 1 : 0;
+    const anySolo = this.channels.some((channel) => channel.solo);
     for (const channel of this.channels) {
+      let value = 0;
+      if (this.monitoring) {
+        const silenced = channel.muted || (anySolo && !channel.solo);
+        value = silenced ? 0 : channel.userGain;
+      }
       channel.monitorGain.gain.value = value;
     }
   }
@@ -193,8 +330,23 @@ export class WebAudioLabEngine implements AudioEngine {
     this.exposedChannelCount = 0;
   }
 
+  private teardownSecondary(): void {
+    if (this.secondaryAudio) {
+      this.secondaryAudio.pause();
+      this.secondaryAudio.srcObject = null;
+      this.secondaryAudio = null;
+    }
+    this.secondaryDest?.disconnect();
+    this.secondaryDest = null;
+  }
+
   private stopStreamTracks(): void {
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
   }
+}
+
+function clamp01(value: number): number {
+  if (Number.isNaN(value)) return 0;
+  return Math.min(1, Math.max(0, value));
 }
