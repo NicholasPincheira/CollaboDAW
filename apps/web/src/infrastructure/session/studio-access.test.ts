@@ -27,9 +27,9 @@ describe("studio access", () => {
   it("requires a configured host key of at least 8 chars", () => {
     const storage = new MemoryStorage();
     expect(isHostCreateEnabled({})).toBe(false);
-    expect(unlockStudio("CollaboDAW-host-7kQ2mN", {}, storage)).toBe(false);
+    expect(unlockStudio("test-host-key-xx", {}, storage)).toBe(false);
     expect(
-      unlockStudio("CollaboDAW-host-7kQ2mN", { VITE_STUDIO_ACCESS_KEY: "CollaboDAW-host-7kQ2mN" }, storage),
+      unlockStudio("test-host-key-xx", { VITE_STUDIO_ACCESS_KEY: "test-host-key-xx" }, storage),
     ).toBe(true);
     expect(isStudioUnlocked(storage)).toBe(true);
     lockStudio(storage);

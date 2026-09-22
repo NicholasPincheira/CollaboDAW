@@ -1,32 +1,49 @@
 # Access keys — MiniDAW Collaborative
 
-Prototype gates (not full Auth). **Do not commit real host keys.**
+Prototype gates (not full Auth). **Never commit real host keys or room passwords.**
 
 ## Host key (create rooms)
 
-Set only in:
+Set **only** in ignored local env / Cloudflare (not in git):
 
-- local `apps/web/.env` as `VITE_STUDIO_ACCESS_KEY=...`
-- Cloudflare Pages → Environment variables → same name
-
-Minimum 8 characters. Without it, **Create session is disabled** (join still works).
-
-Copy your host key here for yourself (this file is tracked — prefer a password manager if the repo is public):
-
-| Key | Where |
+| Where | Variable |
 | --- | --- |
-| Host / studio unlock | Cloudflare Pages `VITE_STUDIO_ACCESS_KEY` + local `.env` |
+| `apps/web/.env` (gitignored) | `VITE_STUDIO_ACCESS_KEY` |
+| Cloudflare Pages → Environment variables | `VITE_STUDIO_ACCESS_KEY` |
 
-Suggested private value (rotate anytime): `CollaboDAW-host-7kQ2mN`
+Rules:
+
+- Minimum 8 characters.
+- Without it, **Create session is disabled** (join still works).
+- Store the real value in a password manager or Cloudflare only.
+
+### Placeholder in this repo (fake — does not unlock production)
+
+```text
+VITE_STUDIO_ACCESS_KEY=REPLACE_ME_LOCAL_ONLY
+```
+
+See `apps/web/.env.example`. Do **not** paste the live host key into markdown, commits, or chat if the repo is public.
 
 ## Room passwords
 
-| Context | Value |
-| --- | --- |
-| You choose when creating | e.g. `friday-band` |
-| Migrated legacy rooms | `minidaw-room` |
+Chosen when you **create** a room. Not stored in plaintext in git.
 
-Anyone with a room id + room password can join. Only hosts with the studio unlock can create.
+| Context | Notes |
+| --- | --- |
+| New rooms | You pick the password at create time (min 4 chars) |
+| Join | Need **session UUID** + that room password |
+
+Anyone with room id + room password can join. Only hosts with the studio unlock can create.
+
+## Join example (fill with your live values)
+
+Do not commit real UUIDs/passwords here. For yourself:
+
+| Field | Where to find it |
+| --- | --- |
+| Session id (UUID) | After create, or from a previous benchmark `sessionId` / host “Recent sessions” |
+| Room password | The one you set at create |
 
 ## Presence display name
 

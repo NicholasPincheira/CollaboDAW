@@ -34,7 +34,7 @@ https://collabodaw-pages.pages.dev
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | Pages env | Público en bundle |
 | `VITE_SUPABASE_ANON_KEY` | Pages env | Solo anon/publishable |
-| `VITE_STUDIO_HOST_KEY` | Pages env | Crear sesiones host-only |
+| `VITE_STUDIO_ACCESS_KEY` | Pages env | Crear sesiones host-only (nunca en git) |
 | `NODE_VERSION` | Pages env | `22` recomendado |
 
 **Nunca** `sb_secret_*` en frontend.
@@ -66,7 +66,7 @@ Ver `docs/SUPABASE-LIMITS.md`:
 | Regla | Implementación |
 | --- | --- |
 | Join público | Room id + password |
-| Create host-only | `VITE_STUDIO_HOST_KEY` |
+| Create host-only | `VITE_STUDIO_ACCESS_KEY` |
 | RLS | On en `work_sessions` |
 | Secret keys | Solo server-side futuro |
 
