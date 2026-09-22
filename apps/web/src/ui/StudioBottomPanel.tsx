@@ -33,12 +33,12 @@ export function StudioBottomPanel({
 
       {open ? (
         <div
-          className="absolute inset-x-0 bottom-full z-10 mb-1.5 max-h-[min(35dvh,22rem)] overflow-hidden rounded-2xl border border-white/10 bg-studio-panel/92 shadow-[0_-16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+          className="absolute inset-x-0 bottom-full z-10 mb-1.5 flex h-[min(48dvh,28rem)] max-h-[min(52dvh,30rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-studio-panel/92 shadow-[0_-16px_48px_rgba(0,0,0,0.55)] backdrop-blur-xl"
           role="dialog"
           aria-modal="true"
           aria-label={tab === "lab" ? "Audio Lab" : "Diagnostics"}
         >
-          <div className="flex items-center gap-2 border-b border-white/8 px-2.5 py-1.5">
+          <div className="flex shrink-0 items-center gap-2 border-b border-white/8 px-2.5 py-1">
             <span className="text-[10px] font-semibold tracking-[0.16em] text-studio-accent uppercase">
               {tab === "lab" ? "Audio Lab" : "Diagnostics"}
             </span>
@@ -52,7 +52,7 @@ export function StudioBottomPanel({
               Close
             </button>
           </div>
-          <div className="max-h-[min(calc(35dvh-2.25rem),19.5rem)] overflow-y-auto overscroll-contain px-2 py-2 sm:px-2.5">
+          <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-hidden px-2 py-1.5 sm:px-2.5">
             {children}
           </div>
         </div>

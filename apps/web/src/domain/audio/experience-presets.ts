@@ -68,9 +68,10 @@ export const EXPERIENCE_PRESETS: readonly ExperiencePreset[] = [
   {
     id: "feel",
     group: "play",
-    label: "Feel (Direct)",
-    shortLabel: "Feel",
-    summary: "Best local playing feel — mute software monitor; use interface Direct Monitor.",
+    label: "HW Direct (interface)",
+    shortLabel: "HW Direct",
+    summary:
+      "Press Direct Monitor / MIX on the interface (dry HW path). No browser FX — NAM/reverb need Monitor.",
     audio: {
       latencyMode: "live",
       preferredSampleRate: 48000,
@@ -84,17 +85,17 @@ export const EXPERIENCE_PRESETS: readonly ExperiencePreset[] = [
     hardwareDirectMonitor: "on",
     forceAiOff: false,
     tips: [
-      "Enable Direct Monitor on the interface (Behringer MIX / Focusrite Direct).",
-      "Set Primary output to the same interface as input.",
-      "Software monitor stays off to avoid doubling the path.",
+      "On the Behringer/Focusrite: press Direct Monitor or turn MIX toward INPUT.",
+      "You hear input→interface outs→amp dry. Web Mon stays OFF (expected silence in browser).",
+      "NAM, reverb, delay = web FX → use Monitor (software on). Direct HW never carries those.",
     ],
   },
   {
     id: "monitor-sw",
     group: "play",
-    label: "Monitor SW",
-    shortLabel: "Monitor",
-    summary: "Hear through the browser when you need software monitor or FX in headphones.",
+    label: "Web Monitor (+ FX)",
+    shortLabel: "Web Mon",
+    summary: "Hear through the browser (Primary/Secondary). Path for future NAM / reverb / delay.",
     audio: {
       latencyMode: "live",
       preferredSampleRate: 48000,
@@ -108,9 +109,9 @@ export const EXPERIENCE_PRESETS: readonly ExperiencePreset[] = [
     hardwareDirectMonitor: "off",
     forceAiOff: false,
     tips: [
-      "Turn Direct Monitor OFF (or MIX fully to USB) so you only hear the browser.",
-      "Use headphones — speakers + open mic will feedback.",
-      "Primary output should still be the audio interface when possible.",
+      "Turn interface Direct Monitor OFF (MIX → USB) so you only hear the browser path.",
+      "Primary = interface→amp and/or Secondary = Windows phones.",
+      "This is the path that will carry open-source NAM / reverb / delay when those slices land.",
     ],
   },
   {
@@ -118,7 +119,7 @@ export const EXPERIENCE_PRESETS: readonly ExperiencePreset[] = [
     group: "play",
     label: "Capture",
     shortLabel: "Capture",
-    summary: "Stable record-oriented path with dry tap priority; Direct Monitor for play-along.",
+    summary: "Stable record-oriented path with dry tap priority; use interface Direct for play-along.",
     audio: {
       latencyMode: "record",
       preferredSampleRate: 48000,
@@ -132,9 +133,9 @@ export const EXPERIENCE_PRESETS: readonly ExperiencePreset[] = [
     hardwareDirectMonitor: "on",
     forceAiOff: false,
     tips: [
-      "Prefer Direct Monitor while recording so feel stays hardware-side.",
+      "Prefer interface Direct Monitor while recording so play-along stays hardware-side.",
       "Dry record tap stays before monitor FX (when recording lands).",
-      "Switch back to Feel for pure playing tests.",
+      "Switch back to HW Direct for dry playing tests, or Web Mon to hear FX.",
     ],
   },
   {

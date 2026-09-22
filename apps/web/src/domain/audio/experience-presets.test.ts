@@ -19,10 +19,11 @@ describe("experience presets", () => {
     expect(EXPERIENCE_PRESETS).toHaveLength(5);
   });
 
-  it("defaults to Feel with AI off for A/B baseline", () => {
+  it("defaults to HW Direct (feel id) with AI off for A/B baseline", () => {
     expect(DEFAULT_EXPERIENCE_PRESET_ID).toBe("feel");
     expect(DEFAULT_AI_ASSIST_MODE).toBe("off");
     const feel = getExperiencePreset("feel");
+    expect(feel.shortLabel).toBe("HW Direct");
     expect(feel.audio.softwareMonitoring).toBe(false);
     expect(feel.audio.latencyMode).toBe("live");
     expect(feel.strategy.preferHardwareDirectMonitor).toBe(true);
@@ -39,9 +40,10 @@ describe("experience presets", () => {
     expect(soft.forceAiOff).toBe(true);
   });
 
-  it("keeps Monitor SW and Capture settings distinct", () => {
+  it("keeps Web Mon and Capture settings distinct", () => {
     const monitor = getExperiencePreset("monitor-sw");
     const capture = getExperiencePreset("capture");
+    expect(monitor.shortLabel).toBe("Web Mon");
     expect(monitor.audio.softwareMonitoring).toBe(true);
     expect(monitor.audio.latencyMode).toBe("live");
     expect(capture.audio.softwareMonitoring).toBe(false);

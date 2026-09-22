@@ -18,7 +18,7 @@ Project-local only (`.cursor/skills/studio-ui/`). Do **not** install global pers
 1. Studio stays **one viewport**: `h-dvh` / `100dvh`, no page scroll.
 2. Header + transport + sections stay `shrink-0`.
 3. Timeline + mixer fill remaining space and scroll **internally**.
-4. **Audio Lab / Diagnostics** live in a **compact footer bar**. Opening a tab shows an **overlay sheet** (~`35dvh`) floating **above** the footer — it must **not** push the timeline down.
+4. **Audio Lab / Diagnostics** live in a **compact footer bar**. Opening a tab shows an **overlay sheet** (~`48dvh`, up to ~28rem) floating **above** the footer — it must **not** push the timeline down. Prefer fitting strip cards without a vertical scrollbar; horizontal pan only.
 5. Closed = footer only. Open = backdrop + sheet; click backdrop or Close to dismiss.
 6. Tool content uses `StudioDragStrip`: quick click selects a card; hold (~140ms) or move ≥8px pans horizontally (GSAP transform). Never use GSAP for audio timing.
 7. Prefer existing primitives: `GlassCard`, `StudioButton`, `PillTabs`, `GradientText`, `lucide-react`.

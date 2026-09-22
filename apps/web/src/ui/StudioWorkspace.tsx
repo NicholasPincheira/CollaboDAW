@@ -558,10 +558,11 @@ function LatencyHud({
         >
           {running && pathMs !== null ? `${pathMs.toFixed(0)} ms path · partial` : "— ms"}
         </span>
-        <span className="hidden text-studio-dim sm:inline">
+        <span className="hidden text-studio-dim sm:inline" title="Preferred SR is 48k on all experience presets; actual updates after Start audio">
           base {baseMs !== null ? `${(baseMs * 1000).toFixed(0)}` : "—"} · out{" "}
-          {outMs !== null ? `${(outMs * 1000).toFixed(0)}` : "—"} · {sampleRate ?? "—"} Hz · mon{" "}
-          {monitoring ? "on" : "off"}
+          {outMs !== null ? `${(outMs * 1000).toFixed(0)}` : "—"} · pref{" "}
+          {preferredSampleRate ? `${Math.round(preferredSampleRate / 1000)}k` : "auto"}
+          {running && sampleRate ? ` · act ${sampleRate} Hz` : " · act —"} · mon {monitoring ? "on" : "off"}
         </span>
         <span className="text-studio-dim">Play</span>
         {playPresets.map((preset) => (
@@ -655,6 +656,14 @@ function LatencyHud({
             ? `${activePreset.summary} · mon ${monitoring ? "on" : "off"} · ${hardwareDirectMonitorLabel(activePreset.hardwareDirectMonitor)}`
             : null}
         </span>
+        {!monitoring && activePreset?.strategy.preferHardwareDirectMonitor ? (
+          <span
+            className="rounded border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 text-amber-300"
+            title="HW Direct: press Direct Monitor on the interface (dry). Web Mon: browser path — future NAM/reverb/delay live here."
+          >
+            Soft silent — press interface Direct · FX = Web Mon
+          </span>
+        ) : null}
         {(["live", "record", "rehearsal", "mix"] as const).map((item) => (
           <button
             key={item}

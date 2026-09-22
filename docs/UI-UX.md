@@ -12,7 +12,7 @@ Studio shell must fit **one viewport** (`100dvh`) without page scroll.
 
 - Fixed header + transport + tempo ruler
 - Flexible center (tracks | clip lanes | mixer) scrolls internally if needed
-- Bottom **Audio Lab / Diagnostics** = compact footer; open tabs as **overlay sheet** (~35dvh) that floats over the center — never pushes layout down
+- Bottom **Audio Lab / Diagnostics** = compact footer; open tabs as **overlay sheet** (~48dvh) that floats over the center — never pushes layout down; avoid vertical scroll inside the sheet
 - Horizontal `StudioDragStrip` inside the sheet (click = focus card, hold/drag = pan)
 - Prefer BandLab-like density over generic admin dashboards
 

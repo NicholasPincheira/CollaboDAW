@@ -262,8 +262,10 @@ function IoSection({
             </option>
           ))}
         </select>
-        <span className="mt-0.5 block text-[10px] text-studio-dim">
-          Dual: {snapshot.secondarySinkStatus}
+        <span className="mt-0.5 block text-[10px] leading-snug text-studio-dim">
+          Dual: {snapshot.secondarySinkStatus}.{" "}
+          <span className="text-studio-mist">Mon</span> = monitor web (Primary/Secondary) — no es
+          Direct Monitor de la Behringer.
         </span>
       </label>
     </div>
@@ -283,6 +285,10 @@ function PresetsSection({
     <div className="space-y-2">
       <div>
         <p className="mb-1 text-[10px] tracking-[0.12em] text-studio-dim uppercase">Play</p>
+        <p className="mb-1 text-[10px] text-studio-dim">
+          <span className="text-studio-mist">HW Direct</span> = botón Direct/MIX en la interfaz (seco).{" "}
+          <span className="text-studio-mist">Web Mon</span> = browser (+ FX futuros). 48 kHz en todos.
+        </p>
         <div className="flex flex-wrap gap-1">
           {listPresetsByGroup("play").map((preset) => (
             <button

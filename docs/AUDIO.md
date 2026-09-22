@@ -98,11 +98,13 @@ See `docs/specs/LATENCY-TARGETS.md`.
 
 High-level bundles for A/B testing local feel. **Orthogonal to IA** (ADR-019).
 
-| Id | Goal | Software monitor | Hint | Notes |
-| --- | --- | --- | --- | --- |
-| `feel` | Best local playing feel | off | live @ 48k | Prefer hardware Direct Monitor |
-| `monitor-sw` | Hear via browser / FX | on | live @ 48k | Headphones; avoid speaker feedback |
-| `capture` | Stable dry recording path | off | record @ 48k | Dry tap priority; Direct Monitor for play-along |
+| Id | UI label | Goal | Software monitor | Hint | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `feel` | **HW Direct** | Press interface Direct Monitor / MIX | off | live @ 48k | Dry HW path — **no** web FX |
+| `monitor-sw` | **Web Mon** | Hear via browser (+ future NAM/FX) | on | live @ 48k | Turn HW Direct off to avoid doubling |
+| `capture` | **Capture** | Stable dry recording path | off | record @ 48k | Dry tap priority; HW Direct for play-along |
+
+**FX note:** Neural Amp Modeler, reverb, delay, etc. only exist on the **software monitor** graph. Hardware Direct Monitor never carries browser FX — that is why Web Mon exists.
 
 Presets do **not** enable IA. Registry: `domain/audio/experience-presets.ts`.
 

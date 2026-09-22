@@ -177,26 +177,26 @@ export function StudioDragStrip({
   return (
     <div
       ref={viewportRef}
-      className="relative touch-pan-y overflow-hidden select-none"
+      className="relative h-full touch-pan-y overflow-hidden select-none"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endPointer}
       onPointerCancel={endPointer}
     >
-      <div ref={trackRef} className="flex w-max gap-2 will-change-transform px-0.5 pb-1">
+      <div ref={trackRef} className="flex h-full w-max gap-2 will-change-transform px-0.5">
         {sections.map((section) => {
           const active = section.id === activeId;
           return (
             <article
               key={section.id}
               data-strip-id={section.id}
-              className={`flex w-[min(18.5rem,78vw)] shrink-0 flex-col rounded-xl border bg-studio-elevated/70 p-2.5 sm:w-[20rem] ${
+              className={`flex h-full w-[min(17.5rem,76vw)] shrink-0 flex-col overflow-hidden rounded-xl border bg-studio-elevated/70 p-2 sm:w-[19rem] ${
                 active
                   ? "border-studio-accent/45 shadow-[0_0_0_1px_rgba(34,211,238,0.12)]"
                   : "border-white/8"
               }`}
             >
-              <header className="mb-2 flex cursor-grab items-baseline justify-between gap-2 active:cursor-grabbing">
+              <header className="mb-1.5 flex shrink-0 cursor-grab items-baseline justify-between gap-2 active:cursor-grabbing">
                 <h3 className="text-[10px] font-semibold tracking-[0.14em] text-studio-accent uppercase">
                   {section.label}
                 </h3>
@@ -204,13 +204,13 @@ export function StudioDragStrip({
                   <span className="truncate text-[10px] text-studio-dim">{section.hint}</span>
                 ) : null}
               </header>
-              <div className="min-h-0 flex-1 space-y-2 text-xs">{section.content}</div>
+              <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden text-xs">{section.content}</div>
             </article>
           );
         })}
       </div>
-      <p className="mt-1 text-[10px] text-studio-dim">
-        Click a card to focus · hold / drag to scroll
+      <p className="pointer-events-none absolute bottom-0 right-1 text-[9px] text-studio-dim/80">
+        click · hold-drag
       </p>
     </div>
   );
