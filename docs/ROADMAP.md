@@ -78,13 +78,15 @@ Still pending: full `TrackRoutingState` (MON/TX/RX/R), rewind/record, clip timel
 
 ## Milestone 4 — Recording
 
-**Gate:** Milestone 1 hardware benchmarks documented on at least one target interface.
+**Gate:** Milestone 1 hardware benchmarks documented on at least one target interface. ✅ UMC22 Soft 1/5 · HW Direct ~5/5 (2026-09-22).
 
-- dry tap before monitor FX
-- MediaRecorder prototype
-- take metadata
-- playback
-- download/export
+- [x] dry tap before monitor FX (`WebAudioLabEngine.getDryRecordStream`)
+- [x] MediaRecorder prototype (`MediaRecorderAudioRecorder`)
+- [ ] take metadata beyond blob size/time
+- [ ] in-app playback on timeline
+- [x] download/export last take
+
+**Next:** Milestone 5 timeline clips, then Milestone 7 WebRTC (still gated on local OK).
 
 ## Milestone 5 — Timeline
 
@@ -151,5 +153,5 @@ Status: **architecture decisions closed** (2026-09-21). **Empirical validation o
 - Specs: `docs/specs/`
 - ADRs: ADR-017, ADR-018, ADR-019 (+ ADR-016 presets)
 - Learning guides: `docs/learn/`
-- Next slice: **Audio Lab hardware benchmarks** (not WebRTC, not recording, not full DAW)
+- Next slice: **Recording dry tap (Slice 3)** → then WebRTC media
 - IA: default off; remote-plc and NAM remain future experiments (ADR-019)

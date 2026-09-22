@@ -182,10 +182,10 @@ export const EXPERIENCE_PRESETS: readonly ExperiencePreset[] = [
     hardwareDirectMonitor: "off",
     forceAiOff: true,
     tips: [
-      "1) Primary output = Behringer/Focusrite.",
-      "2) On the interface: Direct Monitor OFF (MIX fully to USB / computer).",
-      "3) Software monitor is forced ON — you hear the ~64 ms browser path.",
-      "4) Headphones recommended. Play → Feel 1–5 → Copy benchmark JSON.",
+      "1) Primary output = Behringer/Focusrite (not Realtek).",
+      "2) CRITICAL: Direct Monitor OFF / MIX fully to USB — if HW Direct stays ON you hear dry+delayed (double) and feel collapses.",
+      "3) Software monitor is forced ON — you hear the ~64–70 ms browser path only.",
+      "4) Headphones or amp on interface outs after MIX→USB. Play → score 1–5 → Copy benchmark JSON.",
     ],
   },
 ] as const;

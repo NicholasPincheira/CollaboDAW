@@ -29,11 +29,21 @@ import { detectBrowserAudioCapabilities } from "../../infrastructure/audio/detec
 import { BrowserAudioDeviceManager } from "../../infrastructure/audio/browser-audio-device-manager.ts";
 import { LocalChannelMappingOverrideStore } from "../../infrastructure/audio/local-mapping-overrides.ts";
 import { LocalClickScheduler } from "../../infrastructure/audio/local-click-scheduler.ts";
+import type { AudioRecorderPhase } from "../../domain/audio/audio-recorder.ts";
+import { MediaRecorderAudioRecorder } from "../../infrastructure/audio/media-recorder-audio-recorder.ts";
 import {
   WebAudioLabEngine,
   type ChannelMonitorState,
   type LatencyMode,
 } from "../../infrastructure/audio/web-audio-lab-engine.ts";
+
+export interface AudioLabTake {
+  blob: Blob;
+  objectUrl: string;
+  mimeType: string;
+  createdAt: string;
+  byteLength: number;
+}
 
 export interface AudioLabSnapshot {
   status: AudioLabStatus;
@@ -58,6 +68,8 @@ export interface AudioLabSnapshot {
   sinkStatus: "default" | "applied" | "unsupported" | "failed";
   secondarySinkStatus: "off" | "applied" | "unsupported" | "failed";
   clickPlaying: boolean;
+  recordingPhase: AudioRecorderPhase;
+  lastTake: AudioLabTake | null;
   learn: LearnInputState;
   notices: string[];
 }
@@ -67,6 +79,7 @@ type Listener = () => void;
 export class AudioLabController {
   private readonly devices: BrowserAudioDeviceManager;
   private readonly engine: WebAudioLabEngine;
+  private readonly recorder: MediaRecorderAudioRecorder;
   private readonly click: LocalClickScheduler;
   private readonly registry: StaticAudioDeviceProfileRegistry;
   private readonly mapper: DefaultChannelMapper;
@@ -83,9 +96,11 @@ export class AudioLabController {
     devices?: BrowserAudioDeviceManager;
     engine?: WebAudioLabEngine;
     overrides?: ChannelMappingOverrideStore;
+    recorder?: MediaRecorderAudioRecorder;
   }) {
     this.devices = options?.devices ?? new BrowserAudioDeviceManager();
     this.engine = options?.engine ?? new WebAudioLabEngine();
+    this.recorder = options?.recorder ?? new MediaRecorderAudioRecorder();
     this.click = new LocalClickScheduler(
       () => this.engine.getAudioContext(),
       () => this.engine.getMonitorTap(),
@@ -116,6 +131,8 @@ export class AudioLabController {
       sinkStatus: "default",
       secondarySinkStatus: "off",
       clickPlaying: false,
+      recordingPhase: "idle",
+      lastTake: null,
       learn: idleLearn(),
       notices: [
         ...buildExperienceNotices(
@@ -413,6 +430,14 @@ export class AudioLabController {
     this.patch({ status: "stopping" });
     this.cancelLearn();
     this.click.stop();
+    if (this.recorder.getPhase() === "recording") {
+      try {
+        await this.recorder.stop();
+      } catch {
+        /* discard interrupted take when tearing down audio */
+      }
+      this.patch({ recordingPhase: "idle" });
+    }
     await this.engine.stop();
     this.patch({
       status: "ready",
@@ -420,8 +445,88 @@ export class AudioLabController {
       meters: [],
       channelMonitors: [],
       clickPlaying: false,
+      recordingPhase: "idle",
       error: null,
     });
+  }
+
+  /** Dry tap → MediaRecorder. Independent of software monitor / HW Direct. */
+  async startRecording(): Promise<void> {
+    if (this.snapshot.status !== "running") {
+      this.patch({
+        error: {
+          code: "unknown",
+          message: "Start audio before recording.",
+        },
+      });
+      return;
+    }
+    const dry = this.engine.getDryRecordStream();
+    if (!dry) {
+      this.patch({
+        error: {
+          code: "unknown",
+          message: "Dry record tap is not available.",
+        },
+      });
+      return;
+    }
+    try {
+      await this.recorder.start(dry);
+      this.patch({
+        recordingPhase: "recording",
+        error: null,
+        notices: [
+          "Recording dry tap (pre-monitor). HW Direct / Web Mon do not change the take.",
+          ...this.snapshot.notices.filter((line) => !line.startsWith("Recording dry")),
+        ].slice(0, 8),
+      });
+    } catch (error) {
+      this.patch({
+        recordingPhase: "idle",
+        error: {
+          code: "unknown",
+          message: error instanceof Error ? error.message : "Could not start recording.",
+        },
+      });
+    }
+  }
+
+  async stopRecording(): Promise<void> {
+    if (this.recorder.getPhase() !== "recording") return;
+    try {
+      const blob = await this.recorder.stop();
+      if (this.snapshot.lastTake?.objectUrl) {
+        URL.revokeObjectURL(this.snapshot.lastTake.objectUrl);
+      }
+      const objectUrl = URL.createObjectURL(blob);
+      this.patch({
+        recordingPhase: "idle",
+        lastTake: {
+          blob,
+          objectUrl,
+          mimeType: blob.type || "audio/webm",
+          createdAt: new Date().toISOString(),
+          byteLength: blob.size,
+        },
+        error: null,
+      });
+    } catch (error) {
+      this.patch({
+        recordingPhase: "idle",
+        error: {
+          code: "unknown",
+          message: error instanceof Error ? error.message : "Could not stop recording.",
+        },
+      });
+    }
+  }
+
+  clearLastTake(): void {
+    if (this.snapshot.lastTake?.objectUrl) {
+      URL.revokeObjectURL(this.snapshot.lastTake.objectUrl);
+    }
+    this.patch({ lastTake: null });
   }
 
   /** Call from a visualization frame. Does not own musical timing. */

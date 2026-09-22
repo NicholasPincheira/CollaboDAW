@@ -28,6 +28,7 @@ function latencyHintFor(mode: LatencyMode): AudioContextLatencyCategory {
 /**
  * Local Audio Lab graph:
  * MediaStreamSource -> ChannelSplitter -> [Analyser + monitor Gain]
+ *                  └-> MediaStreamDestination (dry record tap, pre-monitor)
  *   -> masterGain -> destination (primary sink)
  *                └-> MediaStreamDestination -> <audio> (secondary sink)
  */
@@ -35,6 +36,7 @@ export class WebAudioLabEngine implements AudioEngine {
   private context: AudioContext | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private splitter: ChannelSplitterNode | null = null;
+  private dryDest: MediaStreamAudioDestinationNode | null = null;
   private masterGain: GainNode | null = null;
   private secondaryDest: MediaStreamAudioDestinationNode | null = null;
   private secondaryAudio: HTMLAudioElement | null = null;
@@ -61,6 +63,11 @@ export class WebAudioLabEngine implements AudioEngine {
 
   getMonitorTap(): AudioNode | null {
     return this.masterGain;
+  }
+
+  /** Dry MediaStream tap before monitor gains — for AudioRecorder. */
+  getDryRecordStream(): MediaStream | null {
+    return this.dryDest?.stream ?? null;
   }
 
   getLatencyMode(): LatencyMode {
@@ -149,6 +156,9 @@ export class WebAudioLabEngine implements AudioEngine {
     this.source = context.createMediaStreamSource(stream);
     this.splitter = context.createChannelSplitter(channelCount);
     this.source.connect(this.splitter);
+
+    this.dryDest = context.createMediaStreamDestination();
+    this.source.connect(this.dryDest);
 
     this.channels = [];
     for (let index = 0; index < channelCount; index += 1) {
@@ -352,6 +362,8 @@ export class WebAudioLabEngine implements AudioEngine {
     this.channels = [];
     this.splitter?.disconnect();
     this.splitter = null;
+    this.dryDest?.disconnect();
+    this.dryDest = null;
     this.source?.disconnect();
     this.source = null;
     this.exposedChannelCount = 0;

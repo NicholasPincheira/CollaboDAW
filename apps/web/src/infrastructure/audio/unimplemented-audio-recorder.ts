@@ -1,10 +1,18 @@
-import type { AudioRecorder } from "../../domain/audio/audio-recorder.ts";
+import type {
+  AudioRecorder,
+  AudioRecorderCapability,
+  AudioRecorderPhase,
+} from "../../domain/audio/audio-recorder.ts";
 import { UnimplementedCapabilityError } from "../../domain/errors.ts";
 
 export class UnimplementedAudioRecorder implements AudioRecorder {
-  readonly capability = "unavailable" as const;
+  readonly capability: AudioRecorderCapability = "unavailable";
 
-  start(): Promise<void> {
+  getPhase(): AudioRecorderPhase {
+    return "idle";
+  }
+
+  start(_stream: MediaStream): Promise<void> {
     return Promise.reject(
       new UnimplementedCapabilityError("AudioRecorder", "Recording is not implemented in this slice."),
     );

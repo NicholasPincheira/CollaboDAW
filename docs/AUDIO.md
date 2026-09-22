@@ -193,9 +193,12 @@ Custom DSP goes in AudioWorklet. NAM/WASM is experimental FX only (ADR-019, ADR-
 
 **Gate:** implement only after Audio Lab hardware benchmarks on target interfaces.
 
-Stage 1:
+Stage 1 (Slice 3 — shipped):
 
-`MediaStream -> MediaRecorder -> Blob`
+`Input MediaStreamSource → dry MediaStreamDestination → MediaRecorder → Blob`  
+(monitor gains / HW Direct do not alter the take)
+
+UI: transport Record arm · Download take link.
 
 Stage 2:
 

@@ -325,11 +325,21 @@ export function StudioWorkspace({
             </button>
             <button
               type="button"
-              disabled
-              className="transport-btn"
-              aria-label="Record (coming soon)"
+              disabled={lab.status !== "running" && lab.recordingPhase !== "recording"}
+              onClick={() => {
+                if (lab.recordingPhase === "recording") {
+                  void controller.stopRecording();
+                } else {
+                  void controller.startRecording();
+                }
+              }}
+              className={`transport-btn ${lab.recordingPhase === "recording" ? "transport-btn-active text-red-400" : ""}`}
+              aria-label={lab.recordingPhase === "recording" ? "Stop recording" : "Record dry take"}
+              title="Dry tap before monitor FX (MediaRecorder)"
             >
-              <Circle className="h-4 w-4" />
+              <Circle
+                className={`h-4 w-4 ${lab.recordingPhase === "recording" ? "fill-red-500 text-red-500" : ""}`}
+              />
             </button>
             <button type="button" onClick={() => controller.stopClick()} className="transport-btn" aria-label="Stop">
               <Square className="h-3.5 w-3.5" />
@@ -341,8 +351,21 @@ export function StudioWorkspace({
               <Repeat className="h-4 w-4" />
             </button>
             <span className="ml-2 font-mono text-xs tabular-nums text-studio-dim">
-              {lab.clickPlaying ? "Click ▶" : "00:00 / —:—"}
+              {lab.recordingPhase === "recording"
+                ? "REC ●"
+                : lab.clickPlaying
+                  ? "Click ▶"
+                  : "00:00 / —:—"}
             </span>
+            {lab.lastTake ? (
+              <a
+                className="ml-2 rounded-lg border border-studio-accent/40 bg-studio-accent/10 px-2 py-1 text-[10px] text-studio-accent hover:bg-studio-accent/20"
+                href={lab.lastTake.objectUrl}
+                download={`collabodaw-take-${lab.lastTake.createdAt.slice(0, 19).replace(/[:T]/g, "-")}.webm`}
+              >
+                Download take ({Math.round(lab.lastTake.byteLength / 1024)} KB)
+              </a>
+            ) : null}
           </div>
           {saveError ? (
             <p className="w-full border-t border-white/5 px-4 py-2 text-xs text-studio-amber" role="alert">
@@ -350,7 +373,7 @@ export function StudioWorkspace({
             </p>
           ) : (
             <p className="hidden w-full border-t border-white/5 px-4 py-2 text-[11px] text-studio-dim lg:block">
-              Direct Monitor ON + software monitor off = mejor feel · Primary output = interfaz
+              HW Direct = feel · Web Mon = browser ms/FX · Record = dry tap (pre-monitor)
             </p>
           )}
         </GlassCard>
@@ -428,7 +451,7 @@ export function StudioWorkspace({
               </div>
               {tracks.length === 0 ? (
                 <div className={`flex ${ROW_H} items-center px-4 text-xs text-studio-dim`}>
-                  Empty arrangement — open Audio Lab below and start audio
+                  Empty arrangement — Start audio, then Record for a dry take
                 </div>
               ) : (
                 tracks.map((entry, index) => (
@@ -600,7 +623,7 @@ function LatencyHud({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-        <span className="font-medium text-studio-accent">A/B feel</span>
+        <span className="font-medium text-studio-accent">A/B score</span>
         {abPresets.map((preset) => (
           <button
             key={preset.id}
@@ -616,31 +639,35 @@ function LatencyHud({
             {preset.shortLabel}
           </button>
         ))}
-        {isAb ? (
-          <>
-            <span className="text-studio-dim">Feel</span>
-            {([1, 2, 3, 4, 5] as const).map((score) => (
-              <button
-                key={score}
-                type="button"
-                className={`min-w-6 rounded border px-1.5 py-0.5 tabular-nums ${
-                  subjectiveFeel === score
-                    ? "border-studio-accent bg-studio-accent text-studio-bg"
-                    : "border-studio-line text-studio-mist hover:border-studio-accent/50"
-                }`}
-                onClick={() => onSubjectiveFeel(score)}
-                aria-label={`Feel score ${score}`}
-              >
-                {score}
-              </button>
-            ))}
-            {subjectiveFeel !== null ? (
-              <span className="text-studio-accent">{subjectiveFeel}/5 · Copy JSON</span>
-            ) : (
-              <span className="text-studio-dim">play → score</span>
-            )}
-          </>
-        ) : null}
+        <span className="text-studio-dim" title="1 = unplayable · 5 = tight like hardware Direct">
+          1–5
+        </span>
+        {([1, 2, 3, 4, 5] as const).map((score) => (
+          <button
+            key={score}
+            type="button"
+            className={`min-w-6 rounded border px-1.5 py-0.5 tabular-nums ${
+              subjectiveFeel === score
+                ? "border-studio-accent bg-studio-accent text-studio-bg"
+                : "border-studio-line text-studio-mist hover:border-studio-accent/50"
+            }`}
+            onClick={() => onSubjectiveFeel(score)}
+            aria-label={`Subjective score ${score}`}
+          >
+            {score}
+          </button>
+        ))}
+        {subjectiveFeel !== null ? (
+          <span className="text-studio-accent">
+            {subjectiveFeel}/5 · {activePreset?.shortLabel ?? "?"} · Copy JSON
+          </span>
+        ) : (
+          <span className="text-studio-dim">
+            {isAb
+              ? "play → score"
+              : "tip: ① Direct = HW score · ② Soft = web score"}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">

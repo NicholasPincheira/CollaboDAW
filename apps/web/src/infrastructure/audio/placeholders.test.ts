@@ -32,7 +32,9 @@ describe("audio placeholders", () => {
   it("refuses to record", async () => {
     const recorder = new UnimplementedAudioRecorder();
     expect(recorder.capability).toBe("unavailable");
-    await expect(recorder.start()).rejects.toBeInstanceOf(UnimplementedCapabilityError);
+    expect(recorder.getPhase()).toBe("idle");
+    const fakeStream = { getAudioTracks: () => [] } as unknown as MediaStream;
+    await expect(recorder.start(fakeStream)).rejects.toBeInstanceOf(UnimplementedCapabilityError);
     await expect(recorder.stop()).rejects.toBeInstanceOf(UnimplementedCapabilityError);
   });
 
