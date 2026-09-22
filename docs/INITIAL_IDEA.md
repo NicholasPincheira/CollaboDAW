@@ -2229,3 +2229,5 @@ Advanced DSP futuro	WASM / WAM 2
 Las capacidades de Web Audio, selección de dispositivos de salida, AudioWorklet, LiveKit, Supabase y las propias Agent Skills/Rules de Cursor están actualmente documentadas de esta manera en sus fuentes oficiales.
 
 Yo empezaría únicamente por el “Audio Lab” de la Fase 0. Es la pieza que nos va a decir qué tan buena puede ser realmente la experiencia en tu PC, con tu interfaz y con Chrome/Edge, antes de meter Supabase, LiveKit y toda la colaboración.
+
+lo encuentro perfecto, con lo que me dices delas entradas podrias agregar un modo como tu dices de adaptarlo y por el lado tener algunas interfaces que las puedas buscar en internet y poder asignar sus entradas para tener maxima compatibilidad , vamos a probar con scarlett focusrite itrack solo, bheringer UMC22

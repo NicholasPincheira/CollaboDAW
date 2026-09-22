@@ -5,11 +5,9 @@ import {
   Play,
   Repeat,
   Save,
-  Settings2,
   SkipBack,
   SkipForward,
   Square,
-  Activity,
 } from "lucide-react";
 import type { AudioLabController } from "../application/audio-lab/audio-lab-controller.ts";
 import { diagnosticsFromAudioLab } from "../application/audio-lab/diagnostics-from-lab.ts";
@@ -38,6 +36,7 @@ import { AudioLabPanel } from "./AudioLabPanel.tsx";
 import { ChannelMixerStrip } from "./ChannelMixerStrip.tsx";
 import { DiagnosticsPanel } from "./DiagnosticsPanel.tsx";
 import { PresenceHeader } from "./PresenceHeader.tsx";
+import { StudioBottomPanel, type StudioDrawerTab } from "./StudioBottomPanel.tsx";
 import { TimelineLane } from "./TimelineLane.tsx";
 import { GlassCard } from "./primitives/GlassCard.tsx";
 import { GradientText } from "./primitives/GradientText.tsx";
@@ -77,7 +76,7 @@ export function StudioWorkspace({
   const [tempoMap, setTempoMap] = useState<TempoMapEntry[]>(session.project.tempoMap);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [drawer, setDrawer] = useState<"closed" | "lab" | "diagnostics">("lab");
+  const [drawer, setDrawer] = useState<StudioDrawerTab>("lab");
   const [selectedSection, setSelectedSection] = useState(0);
 
   const baseMs = lab.diagnostics.baseLatencySeconds;
@@ -429,7 +428,7 @@ export function StudioWorkspace({
               </div>
               {tracks.length === 0 ? (
                 <div className={`flex ${ROW_H} items-center px-4 text-xs text-studio-dim`}>
-                  Empty arrangement — open Audio Lab and start audio
+                  Empty arrangement — open Audio Lab below and start audio
                 </div>
               ) : (
                 tracks.map((entry, index) => (
@@ -442,14 +441,14 @@ export function StudioWorkspace({
             </div>
           </GlassCard>
 
-          <GlassCard padding="p-0" className="flex min-h-0 flex-col overflow-hidden">
+          <GlassCard padding="p-0" className="flex min-h-0 max-h-[40dvh] flex-col overflow-hidden lg:max-h-none">
             <div className="flex items-center justify-between border-b border-white/8 px-4 py-2.5">
               <h3 className="font-heading text-sm font-semibold text-studio-fog">Mezclador</h3>
               <span className="text-[10px] text-studio-dim">{tracks.length} ch</span>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">
               {tracks.length === 0 ? (
-                <p className="p-4 text-xs text-studio-dim">Start audio to populate channels.</p>
+                <p className="p-4 text-xs text-studio-dim">Start audio in the bottom Audio Lab to populate channels.</p>
               ) : (
                 tracks.map((entry, index) => {
                   const streamChannel = entry.streamChannel ?? index;
@@ -481,63 +480,25 @@ export function StudioWorkspace({
           </GlassCard>
         </div>
 
-        <GlassCard padding="p-0" className="mt-2 shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5">
-            <button
-              type="button"
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] transition-colors ${
-                drawer === "lab"
-                  ? "bg-studio-accent/20 text-studio-accent"
-                  : "text-studio-mist hover:bg-white/5"
-              }`}
-              onClick={() => setDrawer(drawer === "lab" ? "closed" : "lab")}
-            >
-              <Settings2 className="h-3.5 w-3.5" aria-hidden />
-              Audio Lab
-            </button>
-            <button
-              type="button"
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] transition-colors ${
-                drawer === "diagnostics"
-                  ? "bg-studio-accent/20 text-studio-accent"
-                  : "text-studio-mist hover:bg-white/5"
-              }`}
-              onClick={() => setDrawer(drawer === "diagnostics" ? "closed" : "diagnostics")}
-            >
-              <Activity className="h-3.5 w-3.5" aria-hidden />
-              Diagnostics
-            </button>
-            <span className="text-[10px] text-studio-dim">
-              {lab.status} · {lab.sinkStatus} · dual {lab.secondarySinkStatus}
-            </span>
-            {drawer !== "closed" ? (
-              <button
-                type="button"
-                className="ml-auto text-[10px] text-studio-dim hover:text-studio-mist"
-                onClick={() => setDrawer("closed")}
-              >
-                Collapse
-              </button>
-            ) : null}
-          </div>
-          {drawer !== "closed" ? (
-            <div className="max-h-[28vh] overflow-auto border-t border-white/8 px-3 py-2">
-              {drawer === "lab" ? (
-                <AudioLabPanel controller={controller} snapshot={lab} compact />
-              ) : (
-                <DiagnosticsPanel
-                  snapshot={diagnostics}
-                  control={control}
-                  autoTune={autoTune}
-                  busy={labBusy}
-                  onMeasureNetwork={() => void handleMeasureNetwork()}
-                  onAutoTune={() => void handleAutoTune()}
-                  onCopyDebug={() => void handleCopyDebug()}
-                />
-              )}
-            </div>
+        <StudioBottomPanel
+          tab={drawer}
+          onTabChange={setDrawer}
+          statusLine={`${lab.status} · ${lab.sinkStatus} · dual ${lab.secondarySinkStatus}`}
+        >
+          {drawer === "lab" ? (
+            <AudioLabPanel controller={controller} snapshot={lab} compact />
+          ) : drawer === "diagnostics" ? (
+            <DiagnosticsPanel
+              snapshot={diagnostics}
+              control={control}
+              autoTune={autoTune}
+              busy={labBusy}
+              onMeasureNetwork={() => void handleMeasureNetwork()}
+              onAutoTune={() => void handleAutoTune()}
+              onCopyDebug={() => void handleCopyDebug()}
+            />
           ) : null}
-        </GlassCard>
+        </StudioBottomPanel>
       </section>
     </div>
   );

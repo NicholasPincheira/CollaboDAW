@@ -43,3 +43,13 @@ docs → Audio Lab → hardware measure → recording → WebRTC
 ```
 
 Do not skip to collaborative networking before local measurement on real interfaces.
+
+
+antes de seguir  jeje que quiero mejorar un poquito el front , mira encontre esta web y tiene esas librerias son gratuitas y estan geniales para crear componentes
+
+Need	Pick	Price
+Free, official, Next.js	shadcn/ui Blocks (dashboard-01)	Free
+Free admin panel (Vite, not Next.js)	shadcn-admin	Free
+Free Next.js starter with auth	next-shadcn-dashboard-starter	Free
+Free with CRM and finance dashboards	Studio Admin	Free
+

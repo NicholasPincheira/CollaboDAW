@@ -4,16 +4,26 @@
 
 Modern studio workstation, compact, clear, playful but professional. Avoid generic SaaS dashboards.
 
-**Reference (2026-09):** DAW Live lobby — glass cards (`backdrop-blur`), cyan gradient accents, pill tabs, lucide icons, staggered GSAP entrances. See `docs/ideas/` for the prior platform mock; CollaboDAW reuses the **style**, not the old content stack (no shadcn/radix required — Tailwind + GSAP + lucide-react).
+**Reference (2026-09):** DAW Live lobby — glass cards (`backdrop-blur`), cyan gradient accents, pill tabs, lucide icons, staggered GSAP entrances. See `docs/ideas/` for the prior platform mock; CollaboDAW reuses the **style**, not the old content stack (Tailwind + GSAP + lucide; shadcn only if we opt in later — see skill `studio-ui`).
 
 ## Viewport rule (required)
 
 Studio shell must fit **one viewport** (`100dvh`) without page scroll.
 
 - Fixed header + transport + tempo ruler
-- Flexible center (tracks | clip lanes) scrolls internally if needed
-- Bottom Audio Lab / Diagnostics is a **collapsible drawer** (`max-h ~28vh`), not an always-tall stack
-- Prefer BandLab-like density over dashboard cards
+- Flexible center (tracks | clip lanes | mixer) scrolls internally if needed
+- Bottom **Audio Lab / Diagnostics** is a collapsible horizontal panel at ~**35% viewport height** (`35dvh`, responsive min/max) — see `StudioBottomPanel`
+- Prefer BandLab-like density over generic admin dashboards
+
+## shadcn / dashboard kits
+
+Free references (patterns only until we opt in):
+
+- [shadcn/ui Blocks](https://ui.shadcn.com/blocks)
+- [shadcn-admin](https://github.com/satnaing/shadcn-admin) (Vite-friendly)
+- Next starters are idea sources, not drop-in replacements
+
+Policy: keep Tailwind + CollaboDAW primitives first; add shadcn components inside `apps/web` only after asking. Project skill: `.cursor/skills/studio-ui/SKILL.md`.
 
 ## Main shell
 
@@ -25,11 +35,9 @@ Studio shell must fit **one viewport** (`100dvh`) without page scroll.
 ├───────────────┬───────────────────────────────────────────────┤
 │ SECTIONS      │ Tempo blocks (above tracks, not inside lanes) │
 ├───────────────┼───────────────────────────────────────────────┤
-│ TRACKS        │ CLIP LANES (recorded audio lives here)        │
-│ Input 1 M S ≡ │ ──────── empty / future waveform ────────     │
-│ Input 2 M S ≡ │ ──────── empty / future waveform ────────     │
+│ TRACKS/LANES  │ CLIP LANES + mixer (center flexes)            │
 ├───────────────┴───────────────────────────────────────────────┤
-│ Drawer tabs: Device / Diagnostics   [Collapse]                │
+│ Bottom panel ~35dvh: Audio Lab | Diagnostics   [Collapse]     │
 └───────────────────────────────────────────────────────────────┘
 ```
 
