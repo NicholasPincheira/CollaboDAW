@@ -14,12 +14,17 @@ describe("StaticAudioDeviceProfileRegistry", () => {
     );
     expect(registry.resolve("Microphone (Behringer UMC22)")?.id).toBe("behringer-umc22");
     expect(registry.resolve("Line (UMC-22)")?.id).toBe("behringer-umc22");
+    expect(
+      registry.resolve("Línea de entrada (2- BEHRINGER USB WDM AUDIO 2.8.40)")?.id,
+    ).toBe("behringer-umc22");
   });
 
   it("does not guess a Scarlett generation or a nearby Behringer model", () => {
     expect(registry.resolve("Scarlett Solo")).toBeNull();
     expect(registry.resolve("UMC202")).toBeNull();
     expect(registry.resolve("USB Audio Device")).toBeNull();
+    // Generic Behringer without WDM/UMC tokens stays unresolved
+    expect(registry.resolve("Behringer Microphone")).toBeNull();
   });
 
   it("keeps 4th Gen channel indexes undiscovered", () => {

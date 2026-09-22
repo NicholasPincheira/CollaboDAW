@@ -4,8 +4,9 @@
 
 | Topic | Document | Architecture | Empirical validation |
 | --- | --- | --- | --- |
-| Latency, monitoring, collaboration | [`2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md`](./2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md) | **Closed** | **Open** — run hardware benchmarks |
-| Hardware run template | [`HARDWARE-BENCHMARK-TEMPLATE.md`](./HARDWARE-BENCHMARK-TEMPLATE.md) | — | Fill after Audio Lab export |
+| Latency, monitoring, collaboration | [`2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md`](./2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md) | **Closed** | Open on more interfaces |
+| Hardware run template | [`HARDWARE-BENCHMARK-TEMPLATE.md`](./HARDWARE-BENCHMARK-TEMPLATE.md) | — | Use for new runs |
+| Behringer UMC22 (WDM) first run | [`2026-09-21-behringer-umc22-benchmark.md`](./2026-09-21-behringer-umc22-benchmark.md) | — | **64–66 ms** software path · outside ADR-018 · I/O OK |
 
 Architecture decisions from this report are integrated into `docs/specs/`, `docs/DECISIONS.md` (ADR-017–019), and core architecture docs.
 

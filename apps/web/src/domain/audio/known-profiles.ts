@@ -70,7 +70,13 @@ export const KNOWN_AUDIO_PROFILES: readonly AudioHardwareProfile[] = [
     id: "behringer-umc22",
     manufacturer: "Behringer",
     model: "U-Phoria UMC22",
-    matchers: [{ includes: ["umc22"] }, { includes: ["umc", "22"] }],
+    matchers: [
+      { includes: ["umc22"] },
+      { includes: ["umc", "22"] },
+      // Windows WDM often exposes UMC22 as "BEHRINGER USB WDM AUDIO" without "UMC22".
+      { includes: ["behringer", "wdm"] },
+      { includes: ["behringer", "usb", "audio"] },
+    ],
     channelOrder: "advisory",
     defaultInputs: [
       { channelIndex: 0, label: "Mic / Line", type: "microphone", preferredFor: "vocal" },
