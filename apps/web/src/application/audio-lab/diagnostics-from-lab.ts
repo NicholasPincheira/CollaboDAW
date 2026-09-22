@@ -69,6 +69,15 @@ export function diagnosticsFromAudioLab(
       group: "audio",
     },
     {
+      id: "subjective-feel",
+      label: "Subjective feel 1–5",
+      value:
+        snapshot.subjectiveFeel1to5 === null
+          ? "not scored — use ① Direct / ② Soft then tap 1–5"
+          : `${snapshot.subjectiveFeel1to5} / 5`,
+      group: "audio",
+    },
+    {
       id: "experience-preset",
       label: "Experience preset",
       value: snapshot.experiencePresetId,

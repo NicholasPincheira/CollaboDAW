@@ -132,8 +132,11 @@ export function buildDebugBundle(input: {
         sinkStatus: input.lab.sinkStatus,
         secondarySinkStatus: input.lab.secondarySinkStatus,
         routingHint: routingHint(input.lab),
-        subjectiveFeel1to5: null,
-        notes: "Fill subjectiveFeel1to5 after playing a short phrase. Keep AI off for baseline.",
+        subjectiveFeel1to5: input.lab.subjectiveFeel1to5,
+        notes:
+          input.lab.subjectiveFeel1to5 === null
+            ? "Tap Feel 1–5 in the HUD after playing, then copy again. Keep AI off for A/B presets."
+            : `Subjective feel ${input.lab.subjectiveFeel1to5}/5 for preset ${input.lab.experiencePresetId}.`,
       },
       audio: {
         status: input.lab.status,

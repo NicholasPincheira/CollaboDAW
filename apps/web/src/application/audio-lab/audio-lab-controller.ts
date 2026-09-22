@@ -14,8 +14,10 @@ import {
   DEFAULT_EXPERIENCE_PRESET_ID,
   buildExperienceNotices,
   getExperiencePreset,
+  isSubjectiveFeelScore,
   type AiAssistMode,
   type ExperiencePresetId,
+  type SubjectiveFeelScore,
 } from "../../domain/audio/experience-presets.ts";
 import { normalizeDeviceLabel } from "../../domain/audio/known-profiles.ts";
 import { pickStrongestChannel } from "../../domain/audio/signal-analysis.ts";
@@ -51,6 +53,8 @@ export interface AudioLabSnapshot {
   preferredSampleRate: number | null;
   experiencePresetId: ExperiencePresetId;
   aiAssistMode: AiAssistMode;
+  /** Subjective playing feel for the active preset (A/B). Null until scored. */
+  subjectiveFeel1to5: SubjectiveFeelScore | null;
   sinkStatus: "default" | "applied" | "unsupported" | "failed";
   secondarySinkStatus: "off" | "applied" | "unsupported" | "failed";
   clickPlaying: boolean;
@@ -108,6 +112,7 @@ export class AudioLabController {
       preferredSampleRate: 48000,
       experiencePresetId: DEFAULT_EXPERIENCE_PRESET_ID,
       aiAssistMode: DEFAULT_AI_ASSIST_MODE,
+      subjectiveFeel1to5: null,
       sinkStatus: "default",
       secondarySinkStatus: "off",
       clickPlaying: false,
@@ -244,11 +249,12 @@ export class AudioLabController {
 
   /**
    * Apply a coherent experience bundle (latency mode + SR + software monitor + tips).
-   * Does not change AI assist — keep that orthogonal for A/B tests.
+   * A/B presets force IA off and clear the feel score so you re-rate after playing.
    */
   async applyExperiencePreset(id: ExperiencePresetId): Promise<void> {
     const preset = getExperiencePreset(id);
     const wasRunning = this.snapshot.status === "running";
+    const aiAssistMode = preset.forceAiOff ? "off" : this.snapshot.aiAssistMode;
     this.click.stop();
     await this.engine.configurePerformance({
       latencyMode: preset.audio.latencyMode,
@@ -260,16 +266,29 @@ export class AudioLabController {
       latencyMode: preset.audio.latencyMode,
       preferredSampleRate: preset.audio.preferredSampleRate,
       monitoring: preset.audio.softwareMonitoring,
+      aiAssistMode,
+      subjectiveFeel1to5: null,
       clickPlaying: false,
       notices: [
-        ...buildExperienceNotices(preset, this.snapshot.aiAssistMode),
+        ...buildExperienceNotices(preset, aiAssistMode),
         "Dual output uses primary AudioContext sink + secondary <audio> sink (Chromium). Devices are not sample-locked.",
         "LiveKit / WebRTC audio sync is still outside this slice; presence uses Supabase Realtime.",
       ],
     });
     if (wasRunning) {
       await this.startAudio();
+      // Re-assert after graph rebuild so Soft/Direct mon state cannot drift.
+      this.engine.setMonitoring(preset.audio.softwareMonitoring);
+      this.patch({ monitoring: preset.audio.softwareMonitoring });
     }
+  }
+
+  /** Store subjective feel 1–5 for the active preset (exported in benchmark JSON). */
+  setSubjectiveFeel(score: SubjectiveFeelScore | null): void {
+    if (score !== null && !isSubjectiveFeelScore(score)) {
+      return;
+    }
+    this.patch({ subjectiveFeel1to5: score });
   }
 
   /** Store AI preference without forcing DSP. Stubs stay inactive until media path exists. */

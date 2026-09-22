@@ -28,8 +28,11 @@ import type { LatencyMode } from "../infrastructure/audio/web-audio-lab-engine.t
 import {
   AI_ASSIST_OPTIONS,
   EXPERIENCE_PRESETS,
+  hardwareDirectMonitorLabel,
+  listPresetsByGroup,
   type AiAssistMode,
   type ExperiencePresetId,
+  type SubjectiveFeelScore,
 } from "../domain/audio/experience-presets.ts";
 import { AudioLabPanel } from "./AudioLabPanel.tsx";
 import { ChannelMixerStrip } from "./ChannelMixerStrip.tsx";
@@ -286,9 +289,11 @@ export function StudioWorkspace({
             experiencePresetId={lab.experiencePresetId}
             aiAssistMode={lab.aiAssistMode}
             monitoring={lab.monitoring}
+            subjectiveFeel={lab.subjectiveFeel1to5}
             running={lab.status === "running"}
             onExperiencePreset={(id) => void controller.applyExperiencePreset(id)}
             onAiAssist={(mode) => controller.setAiAssistMode(mode)}
+            onSubjectiveFeel={(score) => controller.setSubjectiveFeel(score)}
             onMode={(mode) => void controller.setLatencyMode(mode)}
             onSampleRate={(rate) => void controller.setPreferredSampleRate(rate)}
           />
@@ -548,9 +553,11 @@ function LatencyHud({
   experiencePresetId,
   aiAssistMode,
   monitoring,
+  subjectiveFeel,
   running,
   onExperiencePreset,
   onAiAssist,
+  onSubjectiveFeel,
   onMode,
   onSampleRate,
 }: {
@@ -563,14 +570,19 @@ function LatencyHud({
   experiencePresetId: ExperiencePresetId;
   aiAssistMode: AiAssistMode;
   monitoring: boolean;
+  subjectiveFeel: SubjectiveFeelScore | null;
   running: boolean;
   onExperiencePreset: (id: ExperiencePresetId) => void;
   onAiAssist: (mode: AiAssistMode) => void;
+  onSubjectiveFeel: (score: SubjectiveFeelScore | null) => void;
   onMode: (mode: LatencyMode) => void;
   onSampleRate: (rate: number | null) => void;
 }) {
   const activePreset = EXPERIENCE_PRESETS.find((preset) => preset.id === experiencePresetId);
   const activeAi = AI_ASSIST_OPTIONS.find((option) => option.id === aiAssistMode);
+  const playPresets = listPresetsByGroup("play");
+  const abPresets = listPresetsByGroup("ab");
+  const isAb = activePreset?.group === "ab";
 
   return (
     <div className="flex max-w-full flex-col gap-1 rounded-xl border border-white/8 bg-studio-bg/40 px-2 py-1">
@@ -590,8 +602,8 @@ function LatencyHud({
           {outMs !== null ? `${(outMs * 1000).toFixed(0)}` : "—"} · {sampleRate ?? "—"} Hz · mon{" "}
           {monitoring ? "on" : "off"}
         </span>
-        <span className="text-studio-dim">Experience</span>
-        {EXPERIENCE_PRESETS.map((preset) => (
+        <span className="text-studio-dim">Play</span>
+        {playPresets.map((preset) => (
           <button
             key={preset.id}
             type="button"
@@ -624,9 +636,63 @@ function LatencyHud({
           ))}
         </select>
       </div>
+
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-        <span className="hidden max-w-[28rem] truncate text-studio-dim lg:inline" title={activePreset?.summary}>
-          {activePreset?.summary}
+        <span className="font-medium text-studio-accent">A/B feel</span>
+        {abPresets.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            title={preset.summary}
+            className={`rounded border px-1.5 py-0.5 ${
+              experiencePresetId === preset.id
+                ? "border-studio-accent bg-studio-accent/15 text-studio-accent"
+                : "border-studio-line text-studio-dim"
+            }`}
+            onClick={() => onExperiencePreset(preset.id)}
+          >
+            {preset.shortLabel}
+          </button>
+        ))}
+        {isAb ? (
+          <>
+            <span className="text-studio-dim">Feel</span>
+            {([1, 2, 3, 4, 5] as const).map((score) => (
+              <button
+                key={score}
+                type="button"
+                className={`min-w-6 rounded border px-1.5 py-0.5 tabular-nums ${
+                  subjectiveFeel === score
+                    ? "border-studio-accent bg-studio-accent text-studio-bg"
+                    : "border-studio-line text-studio-mist hover:border-studio-accent/50"
+                }`}
+                onClick={() => onSubjectiveFeel(score)}
+                aria-label={`Feel score ${score}`}
+              >
+                {score}
+              </button>
+            ))}
+            {subjectiveFeel !== null ? (
+              <span className="text-studio-accent">{subjectiveFeel}/5 · Copy JSON</span>
+            ) : (
+              <span className="text-studio-dim">play → score</span>
+            )}
+          </>
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        <span
+          className="hidden max-w-[32rem] truncate text-studio-dim lg:inline"
+          title={
+            activePreset
+              ? `${activePreset.summary} · ${hardwareDirectMonitorLabel(activePreset.hardwareDirectMonitor)}`
+              : undefined
+          }
+        >
+          {activePreset
+            ? `${activePreset.summary} · mon ${monitoring ? "on" : "off"} · ${hardwareDirectMonitorLabel(activePreset.hardwareDirectMonitor)}`
+            : null}
         </span>
         {(["live", "record", "rehearsal", "mix"] as const).map((item) => (
           <button

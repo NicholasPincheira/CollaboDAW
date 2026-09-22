@@ -1,5 +1,6 @@
 import type { AudioLabController, AudioLabSnapshot } from "../application/audio-lab/audio-lab-controller.ts";
 import type { ChannelMapEntry } from "../domain/audio/channel-mapper.ts";
+import { listPresetsByGroup } from "../domain/audio/experience-presets.ts";
 
 const selectClass =
   "studio-input py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-studio-accent";
@@ -107,26 +108,40 @@ export function AudioLabPanel({
       </div>
 
       <div className={compact ? "mt-2" : "mt-4"}>
-        <p className="mb-2 text-xs tracking-[0.14em] text-studio-dim uppercase">Experience presets</p>
+        <p className="mb-2 text-xs tracking-[0.14em] text-studio-dim uppercase">Play presets</p>
         <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ["feel", "Feel"],
-              ["monitor-sw", "Monitor SW"],
-              ["capture", "Capture"],
-            ] as const
-          ).map(([id, label]) => (
+          {listPresetsByGroup("play").map((preset) => (
             <button
-              key={id}
+              key={preset.id}
               type="button"
-              className={`${buttonClass} ${snapshot.experiencePresetId === id ? "border-studio-accent text-studio-accent" : ""}`}
+              className={`${buttonClass} ${snapshot.experiencePresetId === preset.id ? "border-studio-accent text-studio-accent" : ""}`}
               disabled={busy}
-              onClick={() => void controller.applyExperiencePreset(id)}
+              title={preset.summary}
+              onClick={() => void controller.applyExperiencePreset(preset.id)}
             >
-              {label}
+              {preset.shortLabel}
             </button>
           ))}
         </div>
+        <p className="mt-3 mb-2 text-xs tracking-[0.14em] text-studio-accent uppercase">A/B feel test</p>
+        <div className="flex flex-wrap gap-2">
+          {listPresetsByGroup("ab").map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              className={`${buttonClass} ${snapshot.experiencePresetId === preset.id ? "border-studio-accent text-studio-accent" : ""}`}
+              disabled={busy}
+              title={preset.summary}
+              onClick={() => void controller.applyExperiencePreset(preset.id)}
+            >
+              {preset.shortLabel}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-studio-dim">
+          ① Direct = HW monitor ON + soft OFF · ② Soft = HW OFF + soft ON. Score 1–5 in the header, then Copy
+          benchmark JSON.
+        </p>
         <label className="mt-2 block text-xs text-studio-mist">
           IA assist (optional A/B)
           <select
