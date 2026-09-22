@@ -1,10 +1,10 @@
 ---
 name: studio-ui
 description: >-
-  CollaboDAW studio shell UI — bottom drawers (~35dvh), glass/cyan DAW Live look,
-  responsive layout, and incremental shadcn-style patterns without replacing the Vite app.
-  Use when editing StudioWorkspace, lobby/dashboard chrome, Audio Lab / Diagnostics panels,
-  or adopting UI component libraries for this repo only.
+  CollaboDAW studio shell UI — compact footer tools, overlay sheets (~35dvh),
+  horizontal drag strips (GSAP), glass/cyan DAW Live look, Outfit typography.
+  Use when editing StudioWorkspace, lobby/dashboard chrome, Audio Lab / Diagnostics,
+  or considering UI kits (shadcn / AudioUI) for this repo only.
 ---
 
 # Studio UI (CollaboDAW project skill)
@@ -18,40 +18,54 @@ Project-local only (`.cursor/skills/studio-ui/`). Do **not** install global pers
 1. Studio stays **one viewport**: `h-dvh` / `100dvh`, no page scroll.
 2. Header + transport + sections stay `shrink-0`.
 3. Timeline + mixer fill remaining space and scroll **internally**.
-4. **Audio Lab / Diagnostics** open as a **bottom horizontal panel** at about **35% of viewport height** (`h-[35dvh]` / `min-h-[12rem]` caps on small screens).
-5. Closed drawer = tab bar only (`shrink-0`). Open drawer must not push the page into scroll — the center grid shrinks.
-6. Prefer existing primitives: `GlassCard`, `StudioButton`, `PillTabs`, `GradientText`, `lucide-react`, GSAP for motion (never for audio clock).
+4. **Audio Lab / Diagnostics** live in a **compact footer bar**. Opening a tab shows an **overlay sheet** (~`35dvh`) floating **above** the footer — it must **not** push the timeline down.
+5. Closed = footer only. Open = backdrop + sheet; click backdrop or Close to dismiss.
+6. Tool content uses `StudioDragStrip`: quick click selects a card; hold (~140ms) or move ≥8px pans horizontally (GSAP transform). Never use GSAP for audio timing.
+7. Prefer existing primitives: `GlassCard`, `StudioButton`, `PillTabs`, `GradientText`, `lucide-react`.
+
+## Typography
+
+- UI: **Outfit** (`--font-sans` / `--font-heading`)
+- Metrics: **JetBrains Mono** (`--font-mono`)
+- Dense controls: `text-[10px]`–`text-[11px]`, tight padding (`py-1` / `py-1.5`)
 
 ## Responsive
 
 | Breakpoint | Behavior |
 | --- | --- |
-| `< md` | Mixer stacks under timeline or collapses; drawer still ~35dvh; denser HUD wraps |
-| `md+` | Timeline + mixer side-by-side; drawer full width under both |
-| Drawer content | Always `overflow-auto` inside the 35dvh panel |
+| `< lg` | Mixer stacks under timeline; overlay still ~35dvh; strip cards ~78vw |
+| `lg+` | Timeline + mixer side-by-side; overlay full width under both |
+| Overlay body | `overflow-y-auto` inside the sheet; strip pans horizontally |
 
 ## shadcn / dashboard kits
 
-Reference only (do not wholesale replace CollaboDAW):
+Reference only — density/layout ideas, not a wholesale replace:
 
-- [shadcn/ui Blocks](https://ui.shadcn.com/blocks) — free patterns
-- [shadcn-admin](https://github.com/satnaing/shadcn-admin) — Vite-friendly admin reference
-- Next starters (dashboard-starter, Studio Admin) — **Next.js**; copy ideas, not the app shell
+- [shadcn/ui Blocks](https://ui.shadcn.com/blocks)
+- [shadcn-admin](https://github.com/satnaing/shadcn-admin) (Vite-friendly)
+
+## AudioUI (Cutoff)
+
+Visual/reference playground: [AudioUI Playground](https://playground.cutoff.dev/) · docs: [cutoff.dev](https://cutoff.dev/audio-ui/docs/latest/getting-started/installation)
+
+- Package: `@cutoff/audio-ui-react` (knobs, sliders, etc.)
+- License: **GPL-3.0-only** (developer preview) — do **not** install until the user explicitly accepts GPL for this app
+- Until then: keep dense Tailwind controls; optional local knob later behind an adapter
 
 ### Adoption policy (this repo)
 
 1. Prefer Tailwind + our primitives first.
-2. If adding shadcn: init **inside `apps/web`** only (Vite), copy components we need (Tabs, Button, Sheet, ScrollArea).
-3. Before adding Radix/`class-variance-authority`/`tailwind-merge`, check `AGENTS.md` dependency policy and ask the user.
-4. Never import LiveKit/Supabase into UI chrome.
+2. Ask before adding Radix / shadcn / AudioUI dependencies (`AGENTS.md` dependency policy).
+3. Never import LiveKit/Supabase into UI chrome.
 
 ## Feedback loop
 
-After a visible UI change, ask the user whether the result matches what they want (density, 35% panel, colors). Iterate only on that feedback — do not expand into WebRTC/recording unless asked.
+After a visible UI change, ask whether footer/overlay density, strip drag, and typography match intent. Iterate on that feedback only.
 
 ## Anti-patterns
 
-- Full-page shadcn admin templates over the DAW shell
-- Cards stacked that force `body` scroll in the studio
-- Drawer taller than ~40dvh without explicit user approval
+- Expanding flex drawers that shrink the timeline when tools open
+- Full-page shadcn/AudioUI admin templates over the DAW shell
+- Overlay taller than ~40dvh without approval
 - GSAP driving musical timing
+- Pulling GPL AudioUI without an explicit license decision

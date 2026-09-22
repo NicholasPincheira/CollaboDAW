@@ -76,7 +76,7 @@ export function StudioWorkspace({
   const [tempoMap, setTempoMap] = useState<TempoMapEntry[]>(session.project.tempoMap);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [drawer, setDrawer] = useState<StudioDrawerTab>("lab");
+  const [drawer, setDrawer] = useState<StudioDrawerTab>("closed");
   const [selectedSection, setSelectedSection] = useState(0);
 
   const baseMs = lab.diagnostics.baseLatencySeconds;
@@ -229,7 +229,7 @@ export function StudioWorkspace({
     <div className="h-dvh overflow-hidden bg-studio-bg text-studio-fog">
       <section
         ref={shellRef}
-        className="mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden px-2 pb-2 pt-2 md:px-3"
+        className="relative mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden px-2 pb-2 pt-2 md:px-3"
         aria-label="Studio"
       >
         <header className="mb-2 flex shrink-0 flex-wrap items-center gap-2 rounded-2xl border border-white/8 bg-studio-panel/50 px-3 py-2 backdrop-blur-md">

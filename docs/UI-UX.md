@@ -12,8 +12,13 @@ Studio shell must fit **one viewport** (`100dvh`) without page scroll.
 
 - Fixed header + transport + tempo ruler
 - Flexible center (tracks | clip lanes | mixer) scrolls internally if needed
-- Bottom **Audio Lab / Diagnostics** is a collapsible horizontal panel at ~**35% viewport height** (`35dvh`, responsive min/max) — see `StudioBottomPanel`
+- Bottom **Audio Lab / Diagnostics** = compact footer; open tabs as **overlay sheet** (~35dvh) that floats over the center — never pushes layout down
+- Horizontal `StudioDragStrip` inside the sheet (click = focus card, hold/drag = pan)
 - Prefer BandLab-like density over generic admin dashboards
+
+## Typography
+
+- Outfit (UI) + JetBrains Mono (metrics)
 
 ## shadcn / dashboard kits
 
@@ -23,7 +28,11 @@ Free references (patterns only until we opt in):
 - [shadcn-admin](https://github.com/satnaing/shadcn-admin) (Vite-friendly)
 - Next starters are idea sources, not drop-in replacements
 
-Policy: keep Tailwind + CollaboDAW primitives first; add shadcn components inside `apps/web` only after asking. Project skill: `.cursor/skills/studio-ui/SKILL.md`.
+## AudioUI (Cutoff)
+
+[Playground](https://playground.cutoff.dev/) — knobs/sliders for future mixer density. Package is **GPL-3.0**; install only after an explicit license decision. Skill: `.cursor/skills/studio-ui/SKILL.md`.
+
+Policy: keep Tailwind + CollaboDAW primitives first; add shadcn/AudioUI inside `apps/web` only after asking.
 
 ## Main shell
 
@@ -37,7 +46,8 @@ Policy: keep Tailwind + CollaboDAW primitives first; add shadcn components insid
 ├───────────────┼───────────────────────────────────────────────┤
 │ TRACKS/LANES  │ CLIP LANES + mixer (center flexes)            │
 ├───────────────┴───────────────────────────────────────────────┤
-│ Bottom panel ~35dvh: Audio Lab | Diagnostics   [Collapse]     │
+│ Footer: Audio Lab | Diagnostics | status                      │
+│ (open → overlay ~35dvh with horizontal strip, no layout push) │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -57,12 +67,11 @@ Always make these states visually obvious:
 
 ## Device setup UX
 
-Audio Lab lives in the bottom drawer:
+Audio Lab opens from the compact footer into an overlay strip:
 
-- device selector + dual output;
-- latency presets + preferred sample rate;
-- profile / channel map / meters;
-- diagnostics tab.
+- Devices card: **Allow audio** + I/O selects + Start/Stop/Monitor;
+- Presets / Map / Meters as horizontal cards (drag to pan);
+- Diagnostics tab uses the same strip pattern.
 
 ## Latency UX
 

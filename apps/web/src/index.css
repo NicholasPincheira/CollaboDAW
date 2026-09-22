@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
-  --font-heading: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
+  --font-sans: "Outfit", "Segoe UI", sans-serif;
+  --font-heading: "Outfit", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --color-studio-bg: #0a0c10;
   --color-studio-elevated: #11141a;
   --color-studio-panel: #151922;
@@ -40,14 +41,18 @@ body {
   font-family: var(--font-heading);
 }
 
+.font-mono {
+  font-family: var(--font-mono);
+}
+
 .studio-input {
   width: 100%;
   min-width: 0;
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   border: 1px solid color-mix(in srgb, var(--color-studio-line) 80%, transparent);
   background: color-mix(in srgb, var(--color-studio-bg) 85%, transparent);
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
   color: var(--color-studio-fog);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
