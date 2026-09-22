@@ -175,18 +175,45 @@ Never make independent output routing a hard requirement for the MVP.
 
 ## Test matrix
 
-For each device/browser combination record:
+For each device/browser combination record (feeds project research — see ADR-018):
 
-- OS
+- OS and version
 - browser/version
-- device label
-- detected input channels
+- interface model (UMC22, iTrack Solo, Scarlett Solo 3rd/4th Gen)
+- driver notes
+- device labels from `enumerateDevices()`
+- `getSettings()` after capture (channelCount, sampleRate, deviceId)
+- detected input channels (runtime, not assumed)
 - detected output devices
-- sample rate
-- `baseLatency`
-- `outputLatency` when available
+- primary output device used (`setSinkId` applied or default)
+- sample rate achieved
+- `baseLatency` (seconds → ms)
+- `outputLatency` when available (seconds → ms)
+- local monitor path estimate (base + output; label as partial)
+- Direct Monitor on/off (user-reported, hardware)
+- software monitor on/off
+- experience preset if used (feel / monitor-sw / capture)
+- IA mode (`off` required for baseline benchmarks)
 - getUserMedia success/failure
 - channel splitting result
-- monitoring success
+- monitoring success / feedback issues
 - output routing success/failure
+- subjective playing feel 1–5
 - notes
+
+Store benchmarks in session debug JSON export or `docs/research/` dated files. Do not treat theoretical targets as validated until measured on this matrix.
+
+## Measurement APIs (Chromium)
+
+| API | Purpose |
+| --- | --- |
+| `enumerateDevices()` | Discover inputs/outputs; labels need permission |
+| `getUserMedia()` + `getSettings()` | Runtime channel count and sample rate |
+| `AudioContext.baseLatency` | Processing latency toward host audio subsystem |
+| `AudioContext.outputLatency` | Output queue estimate (platform-dependent) |
+
+The browser cannot observe the full instrument→ear path when Direct Monitor is active. Document which segments are measured vs user-managed.
+
+## Gate
+
+Hardware acceptance on the three target families is required **before** recording slices and **before** WebRTC. See `docs/ARCHITECTURE.md` implementation gate.

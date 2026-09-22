@@ -2,13 +2,23 @@
 
 ## Core rule
 
-WebSocket is not the live-instrument audio transport.
+WebSocket / Supabase Realtime is **not** the live-instrument audio transport.
 
 Use:
 
-- WebRTC for media.
-- A control transport for state.
-- A persistent database for durable project data.
+- **WebRTC** (or LiveKit adapter) for **media**.
+- A **control** transport for state, presence, tempo, sync anchors.
+- **Postgres + Storage** for durable project metadata and assets.
+
+## Implementation gate
+
+WebRTC/LiveKit slices start **only after**:
+
+1. Audio Lab stable on target hardware (UMC22, iTrack Solo, Scarlett Solo).
+2. Documented local latency benchmarks (`baseLatency`, `outputLatency`, subjective 1–5).
+3. Dry recording path designed (Milestone 4) — optional but recommended before remote jam.
+
+See `docs/ARCHITECTURE.md` implementation gate.
 
 ## Phase 1: two-user experiment
 
@@ -16,7 +26,7 @@ A direct peer-to-peer WebRTC adapter can be used for experiments if it gives use
 
 ## Phase 2: scalable realtime
 
-Use LiveKit as the default realtime-media provider.
+Use LiveKit as the default realtime-media provider behind `RealtimeMediaProvider`.
 
 Conceptual flow:
 
@@ -27,16 +37,14 @@ MediaStreamTrack
     ↓
 RealtimeMediaProvider
     ↓
-LiveKit
+LiveKit / WebRTC
     ↓
 Remote participants
     ↓
 Remote MediaStreamTrack
     ↓
-AudioEngine / Remote Track
+AudioEngine / Remote Track (same Track domain)
 ```
-
-LiveKit supports publishing custom `MediaStreamTrack` instances and publishing/receiving data, which makes it suitable for the media-provider boundary.
 
 ## Participant model
 
@@ -49,7 +57,30 @@ Participant
  └── Future tracks...
 ```
 
-A remote track should become a normal DAW track with source metadata, not a special UI-only object.
+Remote tracks use the same `Track` model as local inputs with `sourceType: remote-participant`. No special UI-only remote objects.
+
+## Per-participant monitor mix (ADR-017)
+
+Each user builds a private mix of local + subscribed remote tracks.
+
+Example:
+
+```text
+Nicholas Guitar   Monitor ON   Transmit ON   Record ON
+Nicholas Mic      Monitor OFF  Transmit OFF  Record ON
+Friend Guitar     Subscribe ON Monitor ON   (remote)
+```
+
+Friend may choose a different combination. See `docs/specs/AUDIO-MONITOR-MIX.md`.
+
+## Mute vs Subscribe (critical)
+
+| Action | Effect |
+| --- | --- |
+| **Mute** | Track still received; excluded from local audible mix |
+| **Unsubscribe** | Client stops receiving remote media; saves bandwidth/CPU |
+
+Never implement mute as a substitute for unsubscribe. LiveKit supports selective track subscription.
 
 ## Session control events
 
@@ -64,6 +95,8 @@ TempoMapChanged
 TrackArmed
 TrackMuted
 TrackSoloChanged
+TrackTransmitChanged
+TrackSubscribeChanged
 ParticipantJoined
 ParticipantLeft
 ResyncRequested
@@ -87,7 +120,7 @@ anchor
 
 Each client maps that timeline to its local `AudioContext`.
 
-## Why the click is local
+## Why the click is local (ADR-002)
 
 Do not transmit a click audio stream merely to synchronize musicians.
 
@@ -128,24 +161,43 @@ The resync button should:
 4. Align on a musical boundary when practical.
 5. Never alter recorded media.
 
-## Latency diagnostics
+## Latency diagnostics (decomposed)
 
-Show distinct values:
+Show distinct values — never one headline number:
 
 ```text
-Local audio
-  base latency
-  output latency
+LOCAL MONITOR
+  baseLatencyMs
+  outputLatencyMs
+  localMonitorPathMs (estimate; label gaps)
 
-Network
-  RTT
-  jitter
-  packet loss
+NETWORK (control and/or media)
+  rttMs
+  jitterMs
+  packetLossPercent
 
-Session
-  clock offset
-  drift
-  last resync
+REMOTE AUDIO
+  remoteOneWayEstimateMs (est. when not directly measured)
+
+SESSION
+  clockOffsetMs
+  clockDrift
+  lastResync
 ```
 
-Do not present an invented single number as "total latency" unless the measurement method is explicitly documented.
+### Targets (ADR-018)
+
+- Local software monitor: **<15 ms** preferred.
+- Remote one-way: **<=30 ms** target.
+
+Mark `est.` when the value is not directly measured end-to-end.
+
+## IA on remote path (ADR-019)
+
+Neural PLC may be experimented on the **receiver** only, default off, A/B vs no PLC. Not part of baseline latency presets. Not a substitute for WebRTC media design.
+
+## Related specs
+
+- `docs/specs/REMOTE-AUDIO-AND-COLLABORATION.md`
+- `docs/specs/LATENCY-TARGETS.md`
+- `docs/specs/COLLAB-UX-CHECKLIST.md`

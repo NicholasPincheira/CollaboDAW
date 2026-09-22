@@ -3,9 +3,9 @@ import type { DiagnosticsSnapshot } from "../application/bootstrap-diagnostics.t
 import type { AutoTuneReport } from "../application/audio-lab/latency-lab.ts";
 
 const GROUPS = [
-  { id: "audio" as const, title: "Audio" },
+  { id: "audio" as const, title: "Local audio (ADR-018)" },
   { id: "device" as const, title: "Device" },
-  { id: "network" as const, title: "Network" },
+  { id: "network" as const, title: "Network (control · not media)" },
   { id: "sync" as const, title: "Sync" },
 ];
 
@@ -29,16 +29,18 @@ export function DiagnosticsPanel({
   return (
     <section aria-labelledby="diagnostics-heading" className="p-1">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h2 id="diagnostics-heading" className="text-sm tracking-[0.16em] text-studio-amber uppercase">
+        <h2 id="diagnostics-heading" className="text-sm tracking-[0.16em] text-studio-accent uppercase">
           Diagnostics
         </h2>
-        <p className="text-xs text-studio-dim">Live readings · media sync after WebRTC</p>
+        <p className="text-xs text-studio-dim">
+          Benchmark export · IA off · template in docs/research/HARDWARE-BENCHMARK-TEMPLATE.md
+        </p>
         <div className="ml-auto flex flex-wrap gap-2">
           <button
             type="button"
             disabled={busy}
             onClick={onMeasureNetwork}
-            className="rounded-lg border border-studio-line px-2 py-1 text-[11px] text-studio-mist disabled:opacity-40"
+            className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-studio-mist disabled:opacity-40"
           >
             Measure network
           </button>
@@ -54,15 +56,15 @@ export function DiagnosticsPanel({
             type="button"
             disabled={busy}
             onClick={onCopyDebug}
-            className="rounded-lg border border-studio-line px-2 py-1 text-[11px] text-studio-mist disabled:opacity-40"
+            className="rounded-lg border border-studio-accent/40 bg-studio-accent/10 px-2 py-1 text-[11px] text-studio-accent disabled:opacity-40"
           >
-            Copy debug JSON
+            Copy benchmark JSON
           </button>
         </div>
       </div>
 
       {autoTune ? (
-        <p className="mb-3 rounded-lg border border-studio-line bg-studio-elevated/50 px-3 py-2 text-xs text-studio-mist">
+        <p className="mb-3 rounded-lg border border-white/10 bg-studio-elevated/50 px-3 py-2 text-xs text-studio-mist">
           {autoTune.note}
           {autoTune.best ? ` · tried ${autoTune.tried.length} configs` : ""}
         </p>

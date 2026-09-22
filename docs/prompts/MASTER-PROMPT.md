@@ -14,6 +14,10 @@ Before doing anything, read:
 - `docs/ROADMAP.md`
 - `docs/DECISIONS.md`
 - `docs/DEVELOPMENT-WORKFLOW.md`
+- `docs/specs/` (latency, monitor mix, remote audio)
+- `docs/research/2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md`
+- `docs/learn/README.md` (quick concepts)
+- `docs/infrastructure/README.md` (deploy + scale)
 - the relevant skills under `.cursor/skills/`
 
 ## Objective
@@ -22,9 +26,11 @@ Build a modular browser mini-DAW for desktop Chromium that first proves local au
 
 ## First priority
 
-The current milestone is the Audio Lab.
+The current milestone is the Audio Lab **with real hardware measurement** on UMC22 / iTrack Solo / Scarlett Solo.
 
-Do not jump ahead.
+Do not jump ahead to recording, WebRTC, LiveKit, IA, or full collaborative mixer.
+
+Implementation gate: `docs/ARCHITECTURE.md`.
 
 The Audio Lab must prove:
 

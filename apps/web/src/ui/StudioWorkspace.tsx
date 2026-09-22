@@ -1,4 +1,16 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  Circle,
+  Play,
+  Repeat,
+  Save,
+  Settings2,
+  SkipBack,
+  SkipForward,
+  Square,
+  Activity,
+} from "lucide-react";
 import type { AudioLabController } from "../application/audio-lab/audio-lab-controller.ts";
 import { diagnosticsFromAudioLab } from "../application/audio-lab/diagnostics-from-lab.ts";
 import {
@@ -13,13 +25,22 @@ import type { SessionCatalog, WorkSession } from "../domain/session/session-cata
 import type { SessionPresence } from "../domain/session/session-presence.ts";
 import type { TempoMapEntry } from "../domain/project/project-document.ts";
 import type { LatencyMode } from "../infrastructure/audio/web-audio-lab-engine.ts";
+import {
+  AI_ASSIST_OPTIONS,
+  EXPERIENCE_PRESETS,
+  type AiAssistMode,
+  type ExperiencePresetId,
+} from "../domain/audio/experience-presets.ts";
 import { AudioLabPanel } from "./AudioLabPanel.tsx";
+import { ChannelMixerStrip } from "./ChannelMixerStrip.tsx";
 import { DiagnosticsPanel } from "./DiagnosticsPanel.tsx";
 import { PresenceHeader } from "./PresenceHeader.tsx";
+import { TimelineLane } from "./TimelineLane.tsx";
+import { GlassCard } from "./primitives/GlassCard.tsx";
+import { GradientText } from "./primitives/GradientText.tsx";
 import { playShellIntro } from "./shell-motion.ts";
 import { useAudioLab } from "./useAudioLab.ts";
 
-const TRACK_COLORS = ["bg-track-a", "bg-track-b", "bg-track-c", "bg-track-d"] as const;
 const ROW_H = "h-16";
 
 export function StudioWorkspace({
@@ -200,33 +221,30 @@ export function StudioWorkspace({
 
   const tracks = lab.channelMap.entries;
 
+  const isPlaying = lab.clickPlaying;
+
   return (
     <div className="h-dvh overflow-hidden bg-studio-bg text-studio-fog">
       <section
         ref={shellRef}
-        className="mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden"
+        className="mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden px-2 pb-2 pt-2 md:px-3"
         aria-label="Studio"
       >
-        {/* Header */}
-        <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-studio-line bg-studio-elevated/95 px-3 py-2">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-lg border border-studio-line px-2.5 py-1 text-xs text-studio-mist"
-          >
-            Sessions
+        <header className="mb-2 flex shrink-0 flex-wrap items-center gap-2 rounded-2xl border border-white/8 bg-studio-panel/50 px-3 py-2 backdrop-blur-md">
+          <button type="button" onClick={onBack} className="transport-btn text-studio-mist" aria-label="Back to sessions">
+            <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="min-w-0">
-            <p className="text-[9px] tracking-[0.2em] text-studio-amber uppercase">MiniDAW</p>
+          <div className="min-w-0 border-r border-white/8 pr-3">
+            <GradientText className="font-heading text-sm font-bold">DAW Live</GradientText>
             <input
-              className="w-36 truncate bg-transparent text-base font-semibold outline-none md:w-48"
+              className="mt-0.5 w-36 truncate bg-transparent text-sm font-medium text-studio-fog outline-none md:w-48"
               value={name}
               onChange={(event) => setName(event.target.value)}
               aria-label="Session name"
             />
           </div>
           <PresenceHeader sessionId={session.id} createPresence={createPresence} />
-          <label className="flex items-center gap-1 rounded-full border border-studio-line px-2 py-0.5 text-xs">
+          <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-studio-bg/50 px-2 py-1 text-xs">
             <input
               type="number"
               min={30}
@@ -236,29 +254,28 @@ export function StudioWorkspace({
               onChange={(event) => setBpm(Number(event.target.value) || 120)}
               aria-label="BPM"
             />
-            bpm
-          </label>
-          <label className="flex items-center gap-1 rounded-full border border-studio-line px-2 py-0.5 text-xs">
+            <span className="text-studio-dim">bpm</span>
+            <span className="text-studio-dim">·</span>
             <input
               type="number"
               min={1}
               max={16}
-              className="w-7 bg-transparent text-right outline-none"
+              className="w-6 bg-transparent text-right outline-none"
               value={numerator}
               onChange={(event) => setNumerator(Number(event.target.value) || 4)}
               aria-label="Numerator"
             />
-            /
+            <span className="text-studio-dim">/</span>
             <input
               type="number"
               min={1}
               max={16}
-              className="w-7 bg-transparent outline-none"
+              className="w-6 bg-transparent outline-none"
               value={denominator}
               onChange={(event) => setDenominator(Number(event.target.value) || 4)}
               aria-label="Denominator"
             />
-          </label>
+          </div>
           <LatencyHud
             pathMs={pathMs}
             baseMs={baseMs}
@@ -266,7 +283,12 @@ export function StudioWorkspace({
             mode={lab.latencyMode}
             sampleRate={lab.diagnostics.sampleRate}
             preferredSampleRate={lab.preferredSampleRate}
+            experiencePresetId={lab.experiencePresetId}
+            aiAssistMode={lab.aiAssistMode}
+            monitoring={lab.monitoring}
             running={lab.status === "running"}
+            onExperiencePreset={(id) => void controller.applyExperiencePreset(id)}
+            onAiAssist={(mode) => controller.setAiAssistMode(mode)}
             onMode={(mode) => void controller.setLatencyMode(mode)}
             onSampleRate={(rate) => void controller.setPreferredSampleRate(rate)}
           />
@@ -274,61 +296,73 @@ export function StudioWorkspace({
             type="button"
             disabled={saving}
             onClick={() => void persist()}
-            className="rounded-lg bg-studio-fog px-3 py-1.5 text-xs font-semibold text-studio-bg disabled:opacity-50"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-studio-accent to-cyan-400 px-3 py-1.5 text-xs font-semibold text-studio-bg disabled:opacity-50"
           >
+            <Save className="h-3.5 w-3.5" aria-hidden />
             {saving ? "…" : "Save"}
           </button>
         </header>
 
-        {/* Transport */}
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-studio-line px-3 py-1.5">
-          <button type="button" disabled className="rounded-full border border-studio-line px-3 py-1 text-xs text-studio-dim">
-            Rewind
-          </button>
-          <button
-            type="button"
-            onClick={handlePlay}
-            className="rounded-full border border-studio-line px-3 py-1 text-xs hover:border-studio-accent"
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => controller.stopClick()}
-            className="rounded-full border border-studio-line px-3 py-1 text-xs hover:border-studio-amber"
-          >
-            Stop
-          </button>
-          <button type="button" disabled className="rounded-full border border-studio-line px-3 py-1 text-xs text-studio-dim">
-            Record
-          </button>
-          <span className="text-xs tabular-nums text-studio-mist">
-            {lab.clickPlaying ? "Click ▶" : "00:00.0"}
-          </span>
+        <GlassCard padding="p-0" className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2">
+            <h2 className="font-heading text-sm font-semibold text-studio-fog">Timeline</h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-1 px-3 py-2">
+            <button type="button" disabled className="transport-btn" aria-label="Rewind">
+              <SkipBack className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handlePlay}
+              className={`transport-btn ${isPlaying ? "transport-btn-active" : ""}`}
+              aria-label={isPlaying ? "Stop click" : "Play click"}
+            >
+              {isPlaying ? <Square className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
+            </button>
+            <button
+              type="button"
+              disabled
+              className="transport-btn"
+              aria-label="Record (coming soon)"
+            >
+              <Circle className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => controller.stopClick()} className="transport-btn" aria-label="Stop">
+              <Square className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" disabled className="transport-btn" aria-label="Forward">
+              <SkipForward className="h-4 w-4" />
+            </button>
+            <button type="button" disabled className="transport-btn" aria-label="Loop">
+              <Repeat className="h-4 w-4" />
+            </button>
+            <span className="ml-2 font-mono text-xs tabular-nums text-studio-dim">
+              {lab.clickPlaying ? "Click ▶" : "00:00 / —:—"}
+            </span>
+          </div>
           {saveError ? (
-            <span className="text-xs text-studio-amber" role="alert">
+            <p className="w-full border-t border-white/5 px-4 py-2 text-xs text-studio-amber" role="alert">
               {saveError}
-            </span>
+            </p>
           ) : (
-            <span className="text-[11px] text-studio-dim">
-              Tip: less delay = Direct Monitor on Behringer + software monitor muted · or Primary = interface
-            </span>
+            <p className="hidden w-full border-t border-white/5 px-4 py-2 text-[11px] text-studio-dim lg:block">
+              Direct Monitor ON + software monitor off = mejor feel · Primary output = interfaz
+            </p>
           )}
-        </div>
+        </GlassCard>
 
-        {/* Tempo map ABOVE tracks (BandLab-style ruler) */}
-        <div className="flex shrink-0 items-stretch border-b border-studio-line">
-          <div className="flex w-56 shrink-0 items-center justify-between gap-2 border-r border-studio-line bg-studio-panel px-3 py-1.5">
+        <div className="mb-2 flex shrink-0 items-stretch overflow-hidden rounded-xl border border-white/8 bg-studio-panel/40 backdrop-blur-sm">
+          <div className="flex w-56 shrink-0 items-center justify-between gap-2 border-r border-white/8 px-3 py-1.5">
             <span className="text-[10px] tracking-[0.14em] text-studio-dim uppercase">Sections</span>
             <button
               type="button"
-              className="rounded border border-studio-line px-1.5 py-0.5 text-[10px] text-studio-mist"
+              className="rounded-lg border border-white/10 px-1.5 py-0.5 text-[10px] text-studio-accent hover:bg-studio-accent/10"
               onClick={addTempoSection}
             >
               + Tempo
             </button>
           </div>
-          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto bg-studio-elevated/40 px-2 py-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-2 py-1.5">
             {tempoMap.map((entry, index) => (
               <button
                 key={`${entry.startBeat}-${index}`}
@@ -337,10 +371,10 @@ export function StudioWorkspace({
                   setSelectedSection(index);
                   setBpm(entry.bpm);
                 }}
-                className={`shrink-0 rounded-lg border px-2 py-1 text-left text-[11px] ${
+                className={`shrink-0 rounded-lg border px-2 py-1 text-left text-[11px] transition-colors ${
                   selectedSection === index
-                    ? "border-studio-accent bg-studio-accent/10"
-                    : "border-studio-line bg-studio-bg/50"
+                    ? "border-studio-accent/50 bg-studio-accent/15 text-studio-accent"
+                    : "border-white/10 bg-studio-bg/40 text-studio-mist hover:border-white/20"
                 }`}
               >
                 <span className="font-semibold">{entry.bpm}</span>
@@ -381,120 +415,100 @@ export function StudioWorkspace({
           </div>
         </div>
 
-        {/* Tracks left + clip lanes right */}
-        <div className="grid min-h-0 flex-1 grid-cols-[14rem_minmax(0,1fr)] overflow-hidden">
-          <aside className="flex min-h-0 flex-col overflow-y-auto border-r border-studio-line bg-studio-panel">
-            <div className="sticky top-0 z-10 border-b border-studio-line bg-studio-panel px-3 py-1.5 text-[10px] tracking-[0.14em] text-studio-dim uppercase">
-              Tracks
-            </div>
-            {tracks.length === 0 ? (
-              <p className="p-3 text-xs text-studio-dim">Open Audio Lab → Start audio</p>
-            ) : (
-              tracks.map((entry, index) => {
-                const streamChannel = entry.streamChannel ?? index;
-                const monitor = lab.channelMonitors[streamChannel] ?? {
-                  muted: false,
-                  solo: false,
-                  gain: 1,
-                };
-                return (
-                  <div
-                    key={entry.label}
-                    className={`flex ${ROW_H} flex-col justify-center gap-1 border-b border-studio-line px-2`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span className={`h-1.5 w-1.5 rounded-full ${TRACK_COLORS[index % TRACK_COLORS.length]}`} />
-                      <span className="truncate text-xs font-medium">{entry.label}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        className={`rounded px-1.5 text-[10px] ${monitor.muted ? "bg-studio-amber/20 text-studio-amber" : "border border-studio-line text-studio-mist"}`}
-                        onClick={() =>
-                          controller.setChannelMonitor(streamChannel, { muted: !monitor.muted })
-                        }
-                      >
-                        M
-                      </button>
-                      <button
-                        type="button"
-                        className={`rounded px-1.5 text-[10px] ${monitor.solo ? "bg-studio-accent/20 text-studio-accent" : "border border-studio-line text-studio-mist"}`}
-                        onClick={() =>
-                          controller.setChannelMonitor(streamChannel, { solo: !monitor.solo })
-                        }
-                      >
-                        S
-                      </button>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={Math.round(monitor.gain * 100)}
-                        onChange={(event) =>
-                          controller.setChannelMonitor(streamChannel, {
-                            gain: Number(event.target.value) / 100,
-                          })
-                        }
-                        className="h-1 flex-1 accent-studio-fog"
-                        aria-label={`${entry.label} gain`}
-                      />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </aside>
-
-          <div className="flex min-h-0 min-w-0 flex-col overflow-auto bg-[linear-gradient(to_right,rgba(42,49,60,0.28)_1px,transparent_1px)] bg-size-[40px_100%]">
-            <div className="sticky top-0 z-10 border-b border-studio-line bg-studio-bg/90 px-3 py-1 text-[10px] text-studio-dim backdrop-blur">
-              1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · clip lanes (recordings land here)
-            </div>
-            {tracks.length === 0 ? (
-              <div className={`flex ${ROW_H} items-center px-4 text-xs text-studio-dim`}>
-                Empty arrangement — start Audio Lab to create lanes
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <GlassCard padding="p-0" className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-auto bg-[linear-gradient(to_right,rgba(42,49,60,0.22)_1px,transparent_1px)] bg-size-[40px_100%]">
+              <div className="sticky top-0 z-10 flex justify-between border-b border-white/8 bg-studio-panel/80 px-4 py-1.5 text-[10px] text-studio-dim backdrop-blur">
+                <span>1 · 2 · 3 · 4 · 5 · 6 · 7 · 8</span>
+                <span className="hidden sm:inline">Clip lanes · Milestone 4</span>
               </div>
-            ) : (
-              tracks.map((entry, index) => (
-                <div
-                  key={`lane-${entry.label}`}
-                  className={`flex ${ROW_H} items-center border-b border-studio-line/80 px-3`}
-                >
-                  <div className="flex h-10 w-full items-center justify-center rounded-lg border border-dashed border-studio-line/70 bg-studio-elevated/20 text-[11px] text-studio-dim">
-                    {entry.label} lane · drop / record takes (Milestone 4)
-                  </div>
-                  <span
-                    className={`ml-2 hidden h-2 w-2 rounded-full sm:inline-block ${TRACK_COLORS[index % TRACK_COLORS.length]}`}
-                  />
+              {tracks.length === 0 ? (
+                <div className={`flex ${ROW_H} items-center px-4 text-xs text-studio-dim`}>
+                  Empty arrangement — open Audio Lab and start audio
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                tracks.map((entry, index) => (
+                  <TimelineLane key={`lane-${entry.label}`} label={entry.label} index={index} rowHeightClass={ROW_H} />
+                ))
+              )}
+              <div className="pointer-events-none absolute top-8 bottom-0 left-[28%] z-10 w-0.5 bg-red-500/60">
+                <div className="absolute -top-1 -ml-1 h-2.5 w-2.5 rounded-full bg-red-500" />
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard padding="p-0" className="flex min-h-0 flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/8 px-4 py-2.5">
+              <h3 className="font-heading text-sm font-semibold text-studio-fog">Mezclador</h3>
+              <span className="text-[10px] text-studio-dim">{tracks.length} ch</span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {tracks.length === 0 ? (
+                <p className="p-4 text-xs text-studio-dim">Start audio to populate channels.</p>
+              ) : (
+                tracks.map((entry, index) => {
+                  const streamChannel = entry.streamChannel ?? index;
+                  const monitor = lab.channelMonitors[streamChannel] ?? {
+                    muted: false,
+                    solo: false,
+                    gain: 1,
+                  };
+                  return (
+                    <ChannelMixerStrip
+                      key={entry.label}
+                      label={entry.label}
+                      index={index}
+                      muted={monitor.muted}
+                      solo={monitor.solo}
+                      gain={monitor.gain}
+                      onMute={() =>
+                        controller.setChannelMonitor(streamChannel, { muted: !monitor.muted })
+                      }
+                      onSolo={() =>
+                        controller.setChannelMonitor(streamChannel, { solo: !monitor.solo })
+                      }
+                      onGain={(gain) => controller.setChannelMonitor(streamChannel, { gain })}
+                    />
+                  );
+                })
+              )}
+            </div>
+          </GlassCard>
         </div>
 
-        {/* Bottom drawer — does not force page scroll */}
-        <div className="shrink-0 border-t border-studio-line bg-studio-panel">
-          <div className="flex items-center gap-2 px-3 py-1">
+        <GlassCard padding="p-0" className="mt-2 shrink-0">
+          <div className="flex items-center gap-2 px-3 py-1.5">
             <button
               type="button"
-              className={`rounded px-2 py-1 text-[11px] ${drawer === "lab" ? "bg-studio-fog text-studio-bg" : "text-studio-mist"}`}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] transition-colors ${
+                drawer === "lab"
+                  ? "bg-studio-accent/20 text-studio-accent"
+                  : "text-studio-mist hover:bg-white/5"
+              }`}
               onClick={() => setDrawer(drawer === "lab" ? "closed" : "lab")}
             >
-              Device / Audio Lab
+              <Settings2 className="h-3.5 w-3.5" aria-hidden />
+              Audio Lab
             </button>
             <button
               type="button"
-              className={`rounded px-2 py-1 text-[11px] ${drawer === "diagnostics" ? "bg-studio-fog text-studio-bg" : "text-studio-mist"}`}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] transition-colors ${
+                drawer === "diagnostics"
+                  ? "bg-studio-accent/20 text-studio-accent"
+                  : "text-studio-mist hover:bg-white/5"
+              }`}
               onClick={() => setDrawer(drawer === "diagnostics" ? "closed" : "diagnostics")}
             >
+              <Activity className="h-3.5 w-3.5" aria-hidden />
               Diagnostics
             </button>
             <span className="text-[10px] text-studio-dim">
-              {lab.status} · sink {lab.sinkStatus} · dual {lab.secondarySinkStatus}
+              {lab.status} · {lab.sinkStatus} · dual {lab.secondarySinkStatus}
             </span>
             {drawer !== "closed" ? (
               <button
                 type="button"
-                className="ml-auto text-[10px] text-studio-dim underline"
+                className="ml-auto text-[10px] text-studio-dim hover:text-studio-mist"
                 onClick={() => setDrawer("closed")}
               >
                 Collapse
@@ -502,7 +516,7 @@ export function StudioWorkspace({
             ) : null}
           </div>
           {drawer !== "closed" ? (
-            <div className="max-h-[28vh] overflow-auto border-t border-studio-line px-3 py-2">
+            <div className="max-h-[28vh] overflow-auto border-t border-white/8 px-3 py-2">
               {drawer === "lab" ? (
                 <AudioLabPanel controller={controller} snapshot={lab} compact />
               ) : (
@@ -518,7 +532,7 @@ export function StudioWorkspace({
               )}
             </div>
           ) : null}
-        </div>
+        </GlassCard>
       </section>
     </div>
   );
@@ -531,7 +545,12 @@ function LatencyHud({
   mode,
   sampleRate,
   preferredSampleRate,
+  experiencePresetId,
+  aiAssistMode,
+  monitoring,
   running,
+  onExperiencePreset,
+  onAiAssist,
   onMode,
   onSampleRate,
 }: {
@@ -541,51 +560,101 @@ function LatencyHud({
   mode: LatencyMode;
   sampleRate: number | null;
   preferredSampleRate: number | null;
+  experiencePresetId: ExperiencePresetId;
+  aiAssistMode: AiAssistMode;
+  monitoring: boolean;
   running: boolean;
+  onExperiencePreset: (id: ExperiencePresetId) => void;
+  onAiAssist: (mode: AiAssistMode) => void;
   onMode: (mode: LatencyMode) => void;
   onSampleRate: (rate: number | null) => void;
 }) {
+  const activePreset = EXPERIENCE_PRESETS.find((preset) => preset.id === experiencePresetId);
+  const activeAi = AI_ASSIST_OPTIONS.find((option) => option.id === aiAssistMode);
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-      <span
-        className={`rounded-full border px-2 py-0.5 tabular-nums ${
-          pathMs !== null && pathMs > 40
-            ? "border-studio-amber/60 text-studio-amber"
-            : "border-studio-accent/50 text-studio-accent"
-        }`}
-        title="Browser-reported base+output only — not full guitar→ear"
-      >
-        {running && pathMs !== null ? `${pathMs.toFixed(0)} ms path` : "— ms"}
-      </span>
-      <span className="hidden text-studio-dim sm:inline">
-        base {baseMs !== null ? `${(baseMs * 1000).toFixed(0)}` : "—"} · out{" "}
-        {outMs !== null ? `${(outMs * 1000).toFixed(0)}` : "—"} · {sampleRate ?? "—"} Hz
-      </span>
-      {(["live", "record", "rehearsal", "mix"] as const).map((item) => (
-        <button
-          key={item}
-          type="button"
-          className={`rounded border px-1.5 py-0.5 capitalize ${
-            mode === item ? "border-studio-accent text-studio-accent" : "border-studio-line text-studio-dim"
+    <div className="flex max-w-full flex-col gap-1 rounded-xl border border-white/8 bg-studio-bg/40 px-2 py-1">
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        <span
+          className={`rounded-full border px-2 py-0.5 tabular-nums ${
+            pathMs !== null && pathMs > 40
+              ? "border-amber-400/50 bg-amber-400/10 text-amber-400"
+              : "border-studio-accent/40 bg-studio-accent/10 text-studio-accent"
           }`}
-          onClick={() => onMode(item)}
+          title="localMonitorPathMs = base+output only — not full guitar→ear (ADR-018)"
         >
-          {item}
-        </button>
-      ))}
-      <select
-        className="rounded border border-studio-line bg-studio-bg px-1 py-0.5 text-studio-mist"
-        value={preferredSampleRate ?? ""}
-        onChange={(event) => {
-          const value = event.target.value;
-          onSampleRate(value ? Number(value) : null);
-        }}
-        aria-label="Preferred sample rate"
-      >
-        <option value="48000">48k</option>
-        <option value="44100">44.1k</option>
-        <option value="">auto</option>
-      </select>
+          {running && pathMs !== null ? `${pathMs.toFixed(0)} ms path · partial` : "— ms"}
+        </span>
+        <span className="hidden text-studio-dim sm:inline">
+          base {baseMs !== null ? `${(baseMs * 1000).toFixed(0)}` : "—"} · out{" "}
+          {outMs !== null ? `${(outMs * 1000).toFixed(0)}` : "—"} · {sampleRate ?? "—"} Hz · mon{" "}
+          {monitoring ? "on" : "off"}
+        </span>
+        <span className="text-studio-dim">Experience</span>
+        {EXPERIENCE_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            title={preset.summary}
+            className={`rounded border px-1.5 py-0.5 ${
+              experiencePresetId === preset.id
+                ? "border-studio-accent text-studio-accent"
+                : "border-studio-line text-studio-dim"
+            }`}
+            onClick={() => onExperiencePreset(preset.id)}
+          >
+            {preset.shortLabel}
+          </button>
+        ))}
+        <span className="ml-1 text-studio-dim" title={activeAi?.summary}>
+          IA
+        </span>
+        <select
+          className="rounded border border-studio-line bg-studio-bg px-1 py-0.5 text-studio-mist"
+          value={aiAssistMode}
+          title={activeAi?.summary}
+          onChange={(event) => onAiAssist(event.target.value as AiAssistMode)}
+          aria-label="IA assist (optional)"
+        >
+          {AI_ASSIST_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+              {option.status === "inactive-stub" ? " (stub)" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        <span className="hidden max-w-[28rem] truncate text-studio-dim lg:inline" title={activePreset?.summary}>
+          {activePreset?.summary}
+        </span>
+        {(["live", "record", "rehearsal", "mix"] as const).map((item) => (
+          <button
+            key={item}
+            type="button"
+            className={`rounded border px-1.5 py-0.5 capitalize ${
+              mode === item ? "border-studio-fog/70 text-studio-fog" : "border-studio-line text-studio-dim"
+            }`}
+            onClick={() => onMode(item)}
+            title="Low-level AudioContext latencyHint (overrides after Experience)"
+          >
+            {item}
+          </button>
+        ))}
+        <select
+          className="rounded border border-studio-line bg-studio-bg px-1 py-0.5 text-studio-mist"
+          value={preferredSampleRate ?? ""}
+          onChange={(event) => {
+            const value = event.target.value;
+            onSampleRate(value ? Number(value) : null);
+          }}
+          aria-label="Preferred sample rate"
+        >
+          <option value="48000">48k</option>
+          <option value="44100">44.1k</option>
+          <option value="">auto</option>
+        </select>
+      </div>
     </div>
   );
 }

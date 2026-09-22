@@ -4,6 +4,8 @@
 
 Modern studio workstation, compact, clear, playful but professional. Avoid generic SaaS dashboards.
 
+**Reference (2026-09):** DAW Live lobby — glass cards (`backdrop-blur`), cyan gradient accents, pill tabs, lucide icons, staggered GSAP entrances. See `docs/ideas/` for the prior platform mock; CollaboDAW reuses the **style**, not the old content stack (no shadcn/radix required — Tailwind + GSAP + lucide-react).
+
 ## Viewport rule (required)
 
 Studio shell must fit **one viewport** (`100dvh`) without page scroll.
@@ -56,13 +58,24 @@ Audio Lab lives in the bottom drawer:
 
 ## Latency UX
 
-Prefer:
+Never show a single headline latency without naming the metric (ADR-018).
+
+Prefer decomposed display:
 
 ```text
-52 ms path · base 10 · out 42 · 48000 Hz · live | record | …
+LOCAL MONITOR
+~12 ms path (base 10 + out 2) · partial
+
+NETWORK RTT
+24 ms
+
+REMOTE AUDIO
+~31 ms est.
 ```
 
-Explain that browser metrics exclude AD/DA and USB. Offer Direct Monitor tip for playing feel.
+Explain that browser metrics exclude ADC/DAC/USB and Direct Monitor hardware path. Targets: local software monitor **<15 ms** preferred; remote one-way **<=30 ms**. Mark `est.` when not directly measured.
+
+Track controls (target UX per `docs/specs/COLLAB-UX-CHECKLIST.md`): M, S, R, MON, TX, RX — current app has partial mute/solo/gain only until post-measurement slices.
 
 ## GSAP usage
 

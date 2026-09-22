@@ -111,3 +111,47 @@ Status: Accepted
 Reason:
 
 Service-role / `sb_secret_*` keys bypass RLS and must never ship in Vite. The browser receives only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+
+## ADR-016 — Experience presets vs optional IA assist
+
+Status: Accepted
+
+Reason:
+
+Latency feel is improved by coherent option bundles (Direct Monitor preference, software monitor on/off, `latencyHint`, sample rate). Those belong in named experience presets players can switch while testing. Neural/PLC assist is a separate, default-off preference so A/B tests stay honest — stubs may store intent before WebRTC/DSP exists without mutating the audio graph.
+
+Detail: see ADR-019 and `docs/adr/ADR-019-AI-IS-ORTHOGONAL-TO-LATENCY.md`.
+
+## ADR-017 — Per-participant monitor mix
+
+Status: Accepted
+
+Reason:
+
+Each participant builds a private monitor mix. Track publication/recording is separate from how each user hears local and remote tracks. Monitor, Transmit, Record Arm, Mute, Subscribe/Receive, gain, and pan must not collapse into one boolean. **Mute ≠ Unsubscribe.**
+
+Detail: `docs/adr/ADR-017-PER-PARTICIPANT-MONITOR-MIX.md`, `docs/specs/AUDIO-MONITOR-MIX.md`.
+
+## ADR-018 — Latency targets (decomposed metrics)
+
+Status: Accepted
+
+Reason:
+
+There is no single product latency number. Local software monitor prefers **<15 ms**; remote one-way target is **<=30 ms**. UI and benchmarks must decompose base, output, RTT, jitter, loss, remote estimate, and clock metrics. Targets are engineering goals backed by NMP references (JackTrip, SonoBus), not universal perception laws.
+
+Detail: `docs/adr/ADR-018-LATENCY-TARGETS.md`, `docs/specs/LATENCY-TARGETS.md`, `docs/research/2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md`.
+
+## ADR-019 — IA orthogonal to latency presets
+
+Status: Accepted
+
+Reason:
+
+IA default OFF. Neural PLC is a future remote-receiver experiment; NAM/WASM is FX/DSP, not a latency fix. No predictive “note guessing” for local monitoring. All latency benchmarks run IA-off first.
+
+Detail: `docs/adr/ADR-019-AI-IS-ORTHOGONAL-TO-LATENCY.md`. Supersedes informal IA guidance only; ADR-016 remains valid for Audio Lab preset bundles.
+
+## ADR numbering note
+
+Research drop-in files originally used ADR-010–012; those numbers were already taken (bootstrap + meters). Canonical new decisions are **ADR-017–019**. See `docs/adr/README.md`.

@@ -1,4 +1,9 @@
 import type { ControlPlaneMetrics } from "../../domain/session/control-plane-probe.ts";
+import {
+  classifyLocalMonitorPathMs,
+  localMonitorBandLabel,
+  softwareMonitorPathMs,
+} from "../../domain/audio/latency-bands.ts";
 import type { AudioLabSnapshot } from "./audio-lab-controller.ts";
 import {
   NOT_MEASURED,
@@ -24,6 +29,12 @@ export function diagnosticsFromAudioLab(
     snapshot.devices.find((device) => device.deviceId === snapshot.outputDeviceId)?.label ??
     (snapshot.outputDeviceId ? snapshot.outputDeviceId : "not selected");
 
+  const pathMs = softwareMonitorPathMs(
+    snapshot.diagnostics.baseLatencySeconds,
+    snapshot.diagnostics.outputLatencySeconds,
+  );
+  const band = classifyLocalMonitorPathMs(pathMs);
+
   const readings: DiagnosticReading[] = [
     {
       id: "sample-rate",
@@ -33,31 +44,58 @@ export function diagnosticsFromAudioLab(
     },
     {
       id: "base-latency",
-      label: "Base latency",
+      label: "baseLatencyMs",
       value: formatMs(snapshot.diagnostics.baseLatencySeconds),
       group: "audio",
     },
     {
       id: "output-latency",
-      label: "Output latency",
+      label: "outputLatencyMs",
       value: snapshot.capabilities.outputLatency
         ? formatMs(snapshot.diagnostics.outputLatencySeconds)
         : "unsupported",
       group: "audio",
     },
     {
-      id: "roundtrip-estimate",
-      label: "Est. monitor path",
-      value: formatRoundTrip(
-        snapshot.diagnostics.baseLatencySeconds,
-        snapshot.diagnostics.outputLatencySeconds,
-      ),
+      id: "local-monitor-path",
+      label: "localMonitorPathMs (partial)",
+      value: formatPath(pathMs),
       group: "audio",
     },
     {
-      id: "latency-preset",
-      label: "Latency preset",
+      id: "local-monitor-band",
+      label: "ADR-018 local band",
+      value: localMonitorBandLabel(band),
+      group: "audio",
+    },
+    {
+      id: "experience-preset",
+      label: "Experience preset",
+      value: snapshot.experiencePresetId,
+      group: "audio",
+    },
+    {
+      id: "ai-assist",
+      label: "IA assist",
+      value: snapshot.aiAssistMode,
+      group: "audio",
+    },
+    {
+      id: "latency-hint",
+      label: "latencyHint (request)",
       value: snapshot.latencyMode,
+      group: "audio",
+    },
+    {
+      id: "software-monitor",
+      label: "Software monitor",
+      value: snapshot.monitoring ? "on" : "off",
+      group: "audio",
+    },
+    {
+      id: "direct-monitor",
+      label: "Direct Monitor (HW)",
+      value: "user-managed on interface · not controlled by Web Audio",
       group: "audio",
     },
     {
@@ -68,7 +106,7 @@ export function diagnosticsFromAudioLab(
     },
     {
       id: "input-channels",
-      label: "Input channels",
+      label: "Input channels (getSettings)",
       value: formatMeasured(snapshot.diagnostics.inputChannelCount),
       group: "audio",
     },
@@ -82,13 +120,13 @@ export function diagnosticsFromAudioLab(
     },
     {
       id: "rtt",
-      label: "Control RTT (Supabase)",
+      label: "networkRttMs (control)",
       value: formatProbeMs(control?.rttMs ?? null),
       group: "network",
     },
     {
       id: "jitter",
-      label: "Control jitter",
+      label: "networkJitterMs (control)",
       value: formatProbeMs(control?.jitterMs ?? null),
       group: "network",
     },
@@ -102,14 +140,20 @@ export function diagnosticsFromAudioLab(
       group: "network",
     },
     {
+      id: "remote-one-way",
+      label: "remoteOneWayEstimateMs",
+      value: "not measured (needs WebRTC media)",
+      group: "network",
+    },
+    {
       id: "sync-offset",
-      label: "Sync offset",
+      label: "clockOffsetMs",
       value: "not measured (needs WebRTC SessionClock)",
       group: "sync",
     },
     {
       id: "drift",
-      label: "Drift",
+      label: "clockDrift",
       value: "not measured (needs WebRTC SessionClock)",
       group: "sync",
     },
@@ -118,10 +162,12 @@ export function diagnosticsFromAudioLab(
   return {
     notices: [
       ...snapshot.notices,
+      "LOCAL MONITOR target (ADR-018): <15 ms preferred · path is base+output only, not instrument→ear.",
+      "REMOTE one-way target: <=30 ms — unavailable until media plane.",
       `setSinkId: ${snapshot.capabilities.setSinkId ? "available" : "unavailable"}`,
       control?.lastError ? `Control probe: ${control.lastError}` : "Control probe ready (Measure network).",
       snapshot.error ? `Error: ${snapshot.error.message}` : "Audio Lab errors will appear here.",
-      "Supabase free tier: keep probes small — no PCM in Postgres, presence/control only.",
+      "Baseline benchmarks: keep IA assist = off. Template: docs/research/HARDWARE-BENCHMARK-TEMPLATE.md",
     ],
     readings,
   };
@@ -142,8 +188,7 @@ function formatProbeMs(value: number | null): string {
   return `${value.toFixed(1)} ms`;
 }
 
-function formatRoundTrip(base: number | null, output: number | null): string {
-  if (base === null && output === null) return NOT_MEASURED;
-  const total = (base ?? 0) + (output ?? 0);
-  return `${(total * 1000).toFixed(1)} ms (base+out · not instrument→ear)`;
+function formatPath(pathMs: number | null): string {
+  if (pathMs === null) return NOT_MEASURED;
+  return `${pathMs.toFixed(1)} ms (base+out · not instrument→ear)`;
 }

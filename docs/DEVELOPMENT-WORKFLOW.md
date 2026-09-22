@@ -63,6 +63,26 @@ Do not allow:
 - vendor-specific types in domain interfaces;
 - unmeasured performance optimizations.
 
+## Implementation sequence (mandatory)
+
+Do not prompt Cursor to build the full collaborative DAW in one step.
+
+```text
+docs/ + ADRs locked
+    ↓
+Audio Lab only
+    ↓
+Target hardware (UMC22, iTrack Solo, Scarlett Solo)
+    ↓
+Real latency measurement
+    ↓
+ONLY THEN recording
+    ↓
+ONLY THEN WebRTC / LiveKit
+```
+
+If a task skips this order, reject it or scope it to documentation/planning only.
+
 ## Review gates
 
 Every milestone should answer:
@@ -70,15 +90,17 @@ Every milestone should answer:
 1. Does it respect the architecture?
 2. Can the implementation be replaced?
 3. Are unsupported capabilities detected?
-4. Is the audio path observable?
+4. Is the audio path observable (decomposed latency, not one number)?
 5. Is the change tested?
 6. Does the next milestone remain easy?
+7. Are we before or after the implementation gate — and is that intentional?
 
 ## Continuous improvement
 
 When a limitation is discovered, update one of:
 
 - `docs/DECISIONS.md`
+- `docs/specs/` or `docs/research/` if measurement-backed
 - relevant skill
 - relevant architecture document
 - roadmap

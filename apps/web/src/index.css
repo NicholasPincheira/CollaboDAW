@@ -2,19 +2,21 @@
 
 @theme {
   --font-sans: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
-  --color-studio-bg: #0b0d10;
-  --color-studio-elevated: #12151a;
-  --color-studio-panel: #171b22;
+  --font-heading: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
+  --color-studio-bg: #0a0c10;
+  --color-studio-elevated: #11141a;
+  --color-studio-panel: #151922;
   --color-studio-line: #2a313c;
   --color-studio-amber: #ff7a18;
-  --color-studio-accent: #3dd6c6;
+  --color-studio-accent: #22d3ee;
   --color-studio-mist: #b7c0cc;
   --color-studio-fog: #f4f7fb;
   --color-studio-dim: #7c8796;
-  --color-track-a: #ff7a18;
-  --color-track-b: #d97757;
-  --color-track-c: #e5484d;
-  --color-track-d: #8b5cf6;
+  --color-track-a: #8b5cf6;
+  --color-track-b: #ec4899;
+  --color-track-c: #22d3ee;
+  --color-track-d: #f59e0b;
+  --color-track-e: #10b981;
 }
 
 html,
@@ -26,11 +28,62 @@ body,
 body {
   margin: 0;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(255, 122, 24, 0.12), transparent 55%),
-    radial-gradient(900px 400px at 90% 0%, rgba(61, 214, 198, 0.08), transparent 50%),
+    radial-gradient(1200px 500px at 10% -10%, rgba(34, 211, 238, 0.1), transparent 55%),
+    radial-gradient(900px 400px at 90% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(600px 300px at 50% 100%, rgba(34, 211, 238, 0.04), transparent 60%),
     var(--color-studio-bg);
   color: var(--color-studio-fog);
   font-family: var(--font-sans);
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.studio-input {
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-studio-line) 80%, transparent);
+  background: color-mix(in srgb, var(--color-studio-bg) 85%, transparent);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-studio-fog);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.studio-input:focus {
+  border-color: color-mix(in srgb, var(--color-studio-accent) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-studio-accent) 15%, transparent);
+}
+
+.studio-range {
+  height: 0.25rem;
+  flex: 1;
+  cursor: pointer;
+  accent-color: var(--color-studio-accent);
+}
+
+.transport-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+  color: var(--color-studio-dim);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.transport-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-studio-elevated) 80%, white 5%);
+  color: var(--color-studio-mist);
+}
+
+.transport-btn-active {
+  background: linear-gradient(135deg, var(--color-studio-accent), #67e8f9);
+  color: var(--color-studio-bg);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-studio-accent) 35%, transparent);
 }
 
 button:disabled {

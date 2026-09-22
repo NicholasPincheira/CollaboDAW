@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CircleHelp, Plus, Radio } from "lucide-react";
 import type { SessionCatalog, WorkSessionSummary } from "../domain/session/session-catalog.ts";
 import type { SessionBackend } from "../infrastructure/session/create-session-catalog.ts";
 import {
@@ -8,7 +9,15 @@ import {
   markRoomUnlocked,
   unlockStudio,
 } from "../infrastructure/session/studio-access.ts";
+import { SessionRoomCard } from "./SessionRoomCard.tsx";
+import { GlassCard } from "./primitives/GlassCard.tsx";
+import { GradientText } from "./primitives/GradientText.tsx";
+import { InfoBanner } from "./primitives/InfoBanner.tsx";
+import { PillTabs } from "./primitives/PillTabs.tsx";
+import { StudioButton } from "./primitives/StudioButton.tsx";
 import { playDashboardIntro } from "./shell-motion.ts";
+
+type LobbyTab = "join" | "host";
 
 export function DashboardPage({
   catalog,
@@ -25,6 +34,7 @@ export function DashboardPage({
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [recent, setRecent] = useState<WorkSessionSummary[] | null>(null);
+  const [tab, setTab] = useState<LobbyTab>("join");
   const [name, setName] = useState("Friday Jam");
   const [roomCode, setRoomCode] = useState("");
   const [joinId, setJoinId] = useState("");
@@ -46,9 +56,10 @@ export function DashboardPage({
         if (!cancelled) setRecent(items);
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Could not load sessions.");
-        setRecent([]);
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load sessions.");
+          setRecent([]);
+        }
       });
     return () => {
       cancelled = true;
@@ -71,6 +82,10 @@ export function DashboardPage({
       animation?.kill();
     };
   }, [recent]);
+
+  useEffect(() => {
+    if (hostMode) setTab("host");
+  }, [hostMode]);
 
   async function refresh(): Promise<void> {
     const items = await catalog.listRecent(12);
@@ -117,6 +132,7 @@ export function DashboardPage({
       return;
     }
     setJoinId(id);
+    setTab("join");
     setError("Enter the room password below to unlock this session.");
   }
 
@@ -145,95 +161,100 @@ export function DashboardPage({
 
   return (
     <div ref={rootRef} className="min-h-screen px-4 py-8 text-studio-fog md:px-8">
-      <div className="mx-auto max-w-6xl">
-        <header data-motion="header" className="mb-10 flex flex-wrap items-end justify-between gap-4">
+      <div className="mx-auto max-w-5xl">
+        <header data-motion="header" className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs tracking-[0.28em] text-studio-amber uppercase">MiniDAW</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">Collaborative</h1>
+            <p className="flex items-center gap-2 text-xs tracking-[0.28em] text-studio-dim uppercase">
+              <Radio className="h-3.5 w-3.5 text-studio-accent" aria-hidden />
+              MiniDAW Collaborative
+            </p>
+            <GradientText as="h1" className="font-heading mt-2 text-4xl font-bold tracking-tight md:text-5xl">
+              DAW Live
+            </GradientText>
             <p className="mt-3 max-w-xl text-sm text-studio-mist md:text-base">
-              Join with a room id + password. Creating rooms requires the private host key.
+              Salas de sesión y colaboración en tiempo real. Unite con room id + password.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="rounded-full border border-studio-line bg-studio-elevated px-3 py-1 text-xs text-studio-dim">
-              Persistence: {backend === "supabase" ? "Supabase" : "Local browser"}
-            </p>
+            <StudioButton variant="ghost" className="text-xs">
+              <CircleHelp className="h-4 w-4" aria-hidden />
+              Cómo funciona
+            </StudioButton>
+            {canCreate ? (
+              <StudioButton variant="primary" className="text-xs" onClick={() => setTab("host")}>
+                <Plus className="h-4 w-4" aria-hidden />
+                Crear sala
+              </StudioButton>
+            ) : null}
+            <span className="rounded-full border border-white/10 bg-studio-elevated/60 px-3 py-1.5 text-xs text-studio-dim backdrop-blur-sm">
+              {backend === "supabase" ? "Supabase" : "Local browser"}
+            </span>
             {hostMode ? (
-              <button
-                type="button"
-                className="rounded-full border border-studio-line px-3 py-1 text-xs text-studio-mist"
+              <StudioButton
+                variant="ghost"
+                className="text-xs"
                 onClick={() => {
                   lockStudio();
                   onHostModeChange(false);
+                  setTab("join");
                 }}
               >
-                Exit host mode
-              </button>
+                Exit host
+              </StudioButton>
             ) : null}
           </div>
         </header>
 
-        <section
-          data-motion="create"
-          className="mb-8 rounded-2xl border border-studio-line bg-studio-panel/90 p-5 shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
-        >
-          <h2 className="text-sm tracking-[0.16em] text-studio-accent uppercase">Join room</h2>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1.2fr_1fr_auto]">
-            <input
-              className="min-w-0 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
-              value={joinId}
-              onChange={(event) => setJoinId(event.target.value)}
-              placeholder="Session id (UUID)"
-              aria-label="Session id"
-            />
-            <input
-              type="password"
-              className="min-w-0 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
-              value={joinCode}
-              onChange={(event) => setJoinCode(event.target.value)}
-              placeholder="Room password"
-              aria-label="Room password"
-              autoComplete="current-password"
-            />
-            <button
-              type="button"
-              disabled={busy || joinId.trim().length < 8 || joinCode.trim().length < 4}
-              onClick={() => void handleJoin()}
-              className="rounded-xl bg-studio-fog px-5 py-3 text-sm font-semibold text-studio-bg disabled:opacity-40"
-            >
-              Join
-            </button>
-          </div>
-        </section>
+        <div data-motion="create" className="mb-6">
+          <InfoBanner title="Tecnología de baja latencia">
+            Web Audio + Direct Monitor para feel local. Control por Supabase Realtime; media WebRTC en
+            roadmap. Medí path ms en Diagnostics — no confundas con guitarra→oído completo.
+          </InfoBanner>
+        </div>
 
-        {!hostMode ? (
-          <section className="mb-10 rounded-2xl border border-dashed border-studio-line p-5">
-            <h2 className="text-sm tracking-[0.16em] text-studio-mist uppercase">Host unlock</h2>
-            <p className="mt-2 text-xs text-studio-dim">
-              Required to create rooms and list recent sessions. Key lives in Pages/`VITE_STUDIO_ACCESS_KEY`
-              (see `docs/ACCESS.md`).
-            </p>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <div data-motion="create" className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <PillTabs
+            tabs={[
+              { id: "join", label: "Unirse a sala" },
+              { id: "host", label: hostMode ? "Host · crear" : "Host · unlock" },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+        </div>
+
+        {tab === "join" ? (
+          <GlassCard data-motion="create" className="mb-8" padding="p-5">
+            <h2 className="font-heading text-sm font-semibold text-studio-fog">Unirse</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-[1.2fr_1fr_auto]">
+              <input
+                className="studio-input"
+                value={joinId}
+                onChange={(event) => setJoinId(event.target.value)}
+                placeholder="Session id (UUID)"
+                aria-label="Session id"
+              />
               <input
                 type="password"
-                className="min-w-0 flex-1 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
-                value={hostKey}
-                onChange={(event) => setHostKey(event.target.value)}
-                placeholder="Host key"
-                aria-label="Host key"
+                className="studio-input"
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                placeholder="Room password"
+                aria-label="Room password"
+                autoComplete="current-password"
               />
-              <button
-                type="button"
-                className="rounded-xl border border-studio-line px-5 py-3 text-sm text-studio-mist"
-                onClick={handleHostUnlock}
+              <StudioButton
+                variant="primary"
+                disabled={busy || joinId.trim().length < 8 || joinCode.trim().length < 4}
+                onClick={() => void handleJoin()}
               >
-                Unlock host tools
-              </button>
+                Unirse
+              </StudioButton>
             </div>
-          </section>
-        ) : (
-          <section className="mb-10 rounded-2xl border border-studio-line bg-studio-panel/90 p-5">
-            <h2 className="text-sm tracking-[0.16em] text-studio-accent uppercase">New session (host)</h2>
+          </GlassCard>
+        ) : hostMode ? (
+          <GlassCard className="mb-8" padding="p-5">
+            <h2 className="font-heading text-sm font-semibold text-studio-fog">Nueva sesión</h2>
             {!isHostCreateEnabled() ? (
               <p className="mt-3 text-sm text-studio-amber">
                 This build has no `VITE_STUDIO_ACCESS_KEY`. Set it in Cloudflare Pages and rebuild.
@@ -241,7 +262,7 @@ export function DashboardPage({
             ) : (
               <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
                 <input
-                  className="min-w-0 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
+                  className="studio-input"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Session name"
@@ -249,28 +270,48 @@ export function DashboardPage({
                 />
                 <input
                   type="password"
-                  className="min-w-0 rounded-xl border border-studio-line bg-studio-bg px-4 py-3 text-sm outline-none focus:border-studio-amber"
+                  className="studio-input"
                   value={roomCode}
                   onChange={(event) => setRoomCode(event.target.value)}
                   placeholder="Room password (min 4)"
                   aria-label="Room password"
                   autoComplete="new-password"
                 />
-                <button
-                  type="button"
+                <StudioButton
+                  variant="primary"
                   disabled={busy || name.trim().length === 0 || roomCode.trim().length < 4}
                   onClick={() => void handleCreate()}
-                  className="rounded-xl bg-studio-fog px-5 py-3 text-sm font-semibold text-studio-bg disabled:opacity-40"
                 >
                   Create & open
-                </button>
+                </StudioButton>
               </div>
             )}
-          </section>
+          </GlassCard>
+        ) : (
+          <GlassCard className="mb-8 border-dashed" padding="p-5">
+            <h2 className="font-heading text-sm font-semibold text-studio-fog">Desbloquear host</h2>
+            <p className="mt-2 text-xs text-studio-dim">
+              Required to create rooms and list recent sessions. Key in `VITE_STUDIO_ACCESS_KEY` — see
+              `docs/ACCESS.md`.
+            </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <input
+                type="password"
+                className="studio-input flex-1"
+                value={hostKey}
+                onChange={(event) => setHostKey(event.target.value)}
+                placeholder="Host key"
+                aria-label="Host key"
+              />
+              <StudioButton variant="outline" onClick={handleHostUnlock}>
+                Unlock host tools
+              </StudioButton>
+            </div>
+          </GlassCard>
         )}
 
         {error ? (
-          <p className="mb-6 text-sm text-studio-amber" role="alert">
+          <p className="mb-6 rounded-xl border border-studio-amber/30 bg-studio-amber/10 px-4 py-3 text-sm text-studio-amber" role="alert">
             {error}
           </p>
         ) : null}
@@ -278,10 +319,10 @@ export function DashboardPage({
         {hostMode ? (
           <section>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-sm tracking-[0.16em] text-studio-mist uppercase">Recent sessions</h2>
+              <h2 className="font-heading text-sm font-semibold text-studio-fog">Salas disponibles</h2>
               <button
                 type="button"
-                className="text-xs text-studio-dim underline-offset-2 hover:underline"
+                className="text-xs text-studio-accent underline-offset-2 hover:underline"
                 onClick={() => void refresh()}
               >
                 Refresh
@@ -290,43 +331,23 @@ export function DashboardPage({
             {recent === null ? (
               <p className="text-sm text-studio-dim">Loading sessions…</p>
             ) : recent.length === 0 ? (
-              <p
-                data-motion="recent"
-                className="rounded-2xl border border-dashed border-studio-line px-5 py-10 text-sm text-studio-dim"
-              >
-                No sessions yet.
-              </p>
+              <GlassCard data-motion="recent" padding="p-10" className="text-center text-sm text-studio-dim">
+                No sessions yet — create one with Crear sala.
+              </GlassCard>
             ) : (
-              <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {recent.map((item) => (
-                  <li
+              <ul className="space-y-3">
+                {recent.map((item, index) => (
+                  <SessionRoomCard
                     key={item.id}
-                    data-motion="recent"
-                    className="rounded-2xl border border-studio-line bg-studio-elevated p-4"
-                  >
-                    <p className="truncate text-lg font-medium">{item.name}</p>
-                    <p className="mt-1 break-all text-[11px] text-studio-dim">{item.id}</p>
-                    <p className="mt-1 text-xs text-studio-dim">
-                      {item.bpm} BPM · {isRoomUnlocked(item.id) ? "unlocked" : "locked"}
-                    </p>
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        type="button"
-                        className="rounded-lg bg-studio-fog px-3 py-1.5 text-xs font-semibold text-studio-bg"
-                        onClick={() => void handleOpenListed(item.id)}
-                      >
-                        Open
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-lg border border-studio-line px-3 py-1.5 text-xs text-studio-mist"
-                        disabled={busy}
-                        onClick={() => void handleRemove(item.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </li>
+                    name={item.name}
+                    id={item.id}
+                    bpm={item.bpm}
+                    locked={!isRoomUnlocked(item.id)}
+                    index={index}
+                    busy={busy}
+                    onOpen={() => void handleOpenListed(item.id)}
+                    onDelete={() => void handleRemove(item.id)}
+                  />
                 ))}
               </ul>
             )}

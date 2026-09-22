@@ -2,10 +2,10 @@ import type { AudioLabController, AudioLabSnapshot } from "../application/audio-
 import type { ChannelMapEntry } from "../domain/audio/channel-mapper.ts";
 
 const selectClass =
-  "w-full rounded-xl border border-studio-line bg-studio-bg px-2 py-2 text-sm text-studio-fog focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-studio-amber";
+  "studio-input py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-studio-accent";
 
 const buttonClass =
-  "rounded-xl border border-studio-line px-3 py-2 text-sm text-studio-fog disabled:cursor-not-allowed disabled:text-studio-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-studio-amber";
+  "rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-studio-fog transition-colors hover:border-studio-accent/30 disabled:cursor-not-allowed disabled:text-studio-dim focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-studio-accent";
 
 export function AudioLabPanel({
   controller,
@@ -24,7 +24,7 @@ export function AudioLabPanel({
 
   return (
     <section
-      className={compact ? "p-1" : "rounded-2xl border border-studio-line bg-studio-elevated p-4"}
+      className={compact ? "p-1" : "rounded-2xl border border-white/8 bg-studio-panel/45 p-4 backdrop-blur-md"}
       aria-labelledby="audio-lab-heading"
     >
       {!compact ? (
@@ -107,7 +107,42 @@ export function AudioLabPanel({
       </div>
 
       <div className={compact ? "mt-2" : "mt-4"}>
-        <p className="mb-2 text-xs tracking-[0.14em] text-studio-dim uppercase">Latency preset</p>
+        <p className="mb-2 text-xs tracking-[0.14em] text-studio-dim uppercase">Experience presets</p>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["feel", "Feel"],
+              ["monitor-sw", "Monitor SW"],
+              ["capture", "Capture"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`${buttonClass} ${snapshot.experiencePresetId === id ? "border-studio-accent text-studio-accent" : ""}`}
+              disabled={busy}
+              onClick={() => void controller.applyExperiencePreset(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="mt-2 block text-xs text-studio-mist">
+          IA assist (optional A/B)
+          <select
+            className={`${selectClass} mt-1`}
+            value={snapshot.aiAssistMode}
+            disabled={busy}
+            onChange={(event) =>
+              controller.setAiAssistMode(event.target.value as typeof snapshot.aiAssistMode)
+            }
+          >
+            <option value="off">Off (baseline)</option>
+            <option value="remote-plc">Remote PLC (stub)</option>
+            <option value="experimental">Experimental (stub)</option>
+          </select>
+        </label>
+        <p className="mt-2 mb-2 text-xs tracking-[0.14em] text-studio-dim uppercase">Latency hint</p>
         <div className="flex flex-wrap gap-2">
           {(["live", "record", "rehearsal", "mix"] as const).map((mode) => (
             <button

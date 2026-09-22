@@ -9,10 +9,18 @@ Primary APIs:
 - `MediaStreamTrack.getSettings()`
 - `AudioContext`
 - `AudioWorklet`
-- `MediaRecorder` for the first recording experiment
+- `MediaRecorder` for the first recording experiment (after Audio Lab measurement gate)
 - `AudioContext.setSinkId()` / `HTMLMediaElement.setSinkId()` when supported
 
 These APIs are permission- and browser-dependent. Always feature-detect and present the limitation in the UI.
+
+Runtime inspection is mandatory:
+
+1. `enumerateDevices()` — what Chromium exposes after permission.
+2. `getSettings()` — actual channel count, sample rate, device ids.
+3. `baseLatency` / `outputLatency` — what the browser can observe on the software path.
+
+These readings are project research data, not assumptions.
 
 ## Initial device flow
 
@@ -23,9 +31,11 @@ User grants permission
     ↓
 Refresh devices
     ↓
-Select input
+Select input / output
     ↓
 getUserMedia(audio constraints)
+    ↓
+getSettings() — validate runtime
     ↓
 MediaStreamAudioSourceNode
     ↓
@@ -53,7 +63,7 @@ Start conservatively. Suggested request:
 
 Do not assume the browser will honor every requested constraint. Inspect `track.getSettings()` afterward.
 
-## Latency modes
+## Latency modes (`latencyHint`)
 
 ### Live
 
@@ -71,39 +81,101 @@ Balanced local monitoring with remote audio enabled later.
 
 Higher latency is acceptable if it enables more expensive processing.
 
-The actual `AudioContext.baseLatency` should be displayed after initialization. A requested `latencyHint` is a request, not a guarantee.
+`latencyHint` is a **request**, not a guarantee. Always display measured `baseLatency` and `outputLatency` after init.
+
+## Latency targets (ADR-018)
+
+| Metric | Product target |
+| --- | --- |
+| Local software monitor | **<15 ms** preferred; 15–20 ms experimental; >30 ms outside instrument target |
+| Remote one-way | **<=30 ms** target; mark estimates with `est.` |
+
+Never show a single `Latency: N ms` without naming which metric it is.
+
+See `docs/specs/LATENCY-TARGETS.md`.
+
+## Experience presets (Audio Lab UX bundles)
+
+High-level bundles for A/B testing local feel. **Orthogonal to IA** (ADR-019).
+
+| Id | Goal | Software monitor | Hint | Notes |
+| --- | --- | --- | --- | --- |
+| `feel` | Best local playing feel | off | live @ 48k | Prefer hardware Direct Monitor |
+| `monitor-sw` | Hear via browser / FX | on | live @ 48k | Headphones; avoid speaker feedback |
+| `capture` | Stable dry recording path | off | record @ 48k | Dry tap priority; Direct Monitor for play-along |
+
+Presets do **not** enable IA. Registry: `domain/audio/experience-presets.ts`.
+
+### Optional IA assist (default off)
+
+| Mode | Role |
+| --- | --- |
+| `off` | Baseline for all benchmarks |
+| `remote-plc` | Future remote packet-loss experiment only |
+| `experimental` | Future NAM/DSP experiment only |
+
+IA must not be used to hide local monitoring latency. See research doc §10.
 
 ## Audio graph
 
 ```text
-                    ┌──── Dry Record Tap
+                    ┌──── Dry Record Tap (before monitor FX)
                     │
 Input → Gain → Split┤
                     │
-                    └──── FX → Pan → Track Bus
+                    └──── Monitor FX → Pan → Track Bus
                                       │
                                       ├── Meter
                                       │
-All tracks ────────────────────────────┴──→ Master
-                                              │
-                                              ├── Recorder (optional)
-                                              └── Output Router
+Local tracks ─────────────────────────┴──→ Local Mix
+Remote tracks (future) ──────────────────→ Remote Mix
+Click (local) ───────────────────────────→ Master → Output
 ```
 
 ## Monitoring
 
+Three concepts — do not conflate:
+
+| Path | Controlled by |
+| --- | --- |
+| Hardware Direct Monitor | User on interface; **not** Web Audio API today |
+| Software monitor | App (`monitorEnabled` per participant view) |
+| Remote monitor | Subscribed remote tracks in local mix |
+
 Support:
 
-- software monitoring;
-- hardware/direct monitoring awareness;
+- software monitoring (opt-in);
+- hardware/direct monitoring awareness in UI copy;
 - safe mute behavior to avoid feedback loops;
-- monitor-only effects.
+- monitor-only effects on software path only.
 
-Do not assume hardware direct monitoring can be controlled by browser software.
+## Track routing (spec vs implementation)
+
+**Target domain** (`docs/specs/AUDIO-MONITOR-MIX.md`):
+
+```ts
+interface TrackRoutingState {
+  monitorEnabled: boolean;
+  transmitEnabled: boolean;
+  recordArmed: boolean;
+  muted: boolean;
+  subscribed: boolean;
+  volumeDb: number;
+  pan: number;
+}
+```
+
+**Current Audio Lab:** mute, solo, gain on local channels only — partial. Transmit, Record Arm, Subscribe not implemented until post-measurement slices.
+
+**Mute ≠ Unsubscribe.** Mute silences a track in the local mix; unsubscribe stops receiving remote media.
+
+## Per-participant monitor mix (ADR-017)
+
+Each participant has independent `ParticipantViewState` for how they hear tracks. Changing Nicholas's monitor settings must not change Friend's mix.
 
 ## Effects
 
-First effects:
+First effects (after local latency baseline):
 
 - Gain
 - Biquad EQ
@@ -113,9 +185,11 @@ First effects:
 - Delay
 - Stereo panner
 
-Custom DSP goes in AudioWorklet.
+Custom DSP goes in AudioWorklet. NAM/WASM is experimental FX only (ADR-019, ADR-008).
 
 ## Recording strategy
+
+**Gate:** implement only after Audio Lab hardware benchmarks on target interfaces.
 
 Stage 1:
 
@@ -125,32 +199,30 @@ Stage 2:
 
 `AudioWorklet -> PCM -> Worker -> WAV encoder`
 
-Keep both behind `AudioRecorder`.
+Dry tap before monitor FX. Keep both behind `AudioRecorder`.
 
 ## Audio Lab UI requirements
 
-Display:
+Display (decomposed):
 
-- selected input device;
+- selected input / output devices;
 - detected profile;
-- channel count;
+- channel count from `getSettings()`;
 - channel meter per logical input;
 - sample rate;
-- base latency;
-- output latency if available;
-- selected output device;
-- monitoring state;
-- browser support flags.
+- **base latency**;
+- **output latency** if available;
+- local monitor path estimate (label partial if needed);
+- monitoring state (software on/off);
+- Direct Monitor hint (user-managed hardware);
+- browser capability flags.
 
 Actions:
 
-- Start Audio
-- Stop Audio
-- Test Input
+- Start / Stop Audio
 - Learn Input
-- Configure Inputs
-- Refresh Devices
-- Resync later, once SessionClock exists
+- Configure inputs / refresh devices
+- Export debug JSON for benchmarks
 
 ## Failure cases
 
@@ -165,3 +237,9 @@ Handle explicitly:
 - browser policy restrictions;
 - invalid deviceId;
 - stream ended unexpectedly.
+
+## Related docs
+
+- `docs/DEVICE-COMPATIBILITY.md` — hardware test matrix
+- `docs/research/2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md` — research conclusions
+- `docs/specs/AUDIO-MONITOR-MIX.md` — full routing spec

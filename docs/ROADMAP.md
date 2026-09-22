@@ -11,9 +11,20 @@ Status: Done
 - Cursor rules/skills
 - test/typecheck/lint/build scripts
 
+## Implementation gate (do not skip)
+
+```text
+docs + ADRs
+  → Audio Lab
+  → UMC22 / iTrack Solo / Scarlett Solo
+  → measure real latency (enumerateDevices, getSettings, base/outputLatency)
+  → ONLY THEN recording
+  → ONLY THEN WebRTC / LiveKit
+```
+
 ## Milestone 1 — Audio Lab
 
-Status: Implemented in app (hardware acceptance pending on physical interfaces)
+Status: Implemented in app — **hardware acceptance and empirical benchmarks pending**
 
 - device enumeration
 - permission flow
@@ -53,7 +64,9 @@ Status: Started (usable essentials 2026-09-21)
 - latency presets (live/record/rehearsal/mix)
 - host-only create; public join with room id + password
 
-Still pending: rewind/record, clip timeline drag-drop, shared transport over Realtime.
+Still pending: full `TrackRoutingState` (MON/TX/RX/R), rewind/record, clip timeline, shared transport over Realtime.
+
+**Note:** Current mute/solo/gain is a partial local monitor subset — not the full spec in `docs/specs/AUDIO-MONITOR-MIX.md`.
 
 ## Milestone 3 — Effects
 
@@ -65,6 +78,9 @@ Still pending: rewind/record, clip timeline drag-drop, shared transport over Rea
 
 ## Milestone 4 — Recording
 
+**Gate:** Milestone 1 hardware benchmarks documented on at least one target interface.
+
+- dry tap before monitor FX
 - MediaRecorder prototype
 - take metadata
 - playback
@@ -88,10 +104,13 @@ Still pending: rewind/record, clip timeline drag-drop, shared transport over Rea
 
 ## Milestone 7 — Realtime audio
 
+**Gate:** Local latency measured; recording path specified; ADR-017 routing model ready in domain.
+
 - WebRTC adapter
 - LiveKit adapter
 - multi-track publication
-- remote monitoring
+- selective subscribe / unsubscribe (distinct from mute)
+- per-participant remote monitoring
 
 ## Milestone 8 — Synchronization laboratory
 
@@ -123,3 +142,14 @@ Compare measured results for:
 - AudioWorklet/WASM strategies
 
 Do not perform these comparisons before the base Audio Lab is stable.
+
+## Research track — Latency / collaboration
+
+Status: **architecture decisions closed** (2026-09-21). **Empirical validation open** on real hardware.
+
+- Final report: `docs/research/2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md`
+- Specs: `docs/specs/`
+- ADRs: ADR-017, ADR-018, ADR-019 (+ ADR-016 presets)
+- Learning guides: `docs/learn/`
+- Next slice: **Audio Lab hardware benchmarks** (not WebRTC, not recording, not full DAW)
+- IA: default off; remote-plc and NAM remain future experiments (ADR-019)

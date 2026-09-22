@@ -69,32 +69,35 @@ export function PresenceHeader({
 
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-      <div className="flex items-center gap-1.5" aria-label="Connected users">
+      <div className="flex items-center" aria-label="Connected users">
         {participants.length === 0 ? (
           <span className="text-xs text-studio-dim">
-            {status === "connecting" ? "Connecting…" : "No one online"}
+            {status === "connecting" ? "Connecting…" : "Solo en sala"}
           </span>
         ) : (
-          participants.map((person) => (
-            <span
-              key={person.id}
-              title={person.name}
-              className="inline-flex items-center gap-1.5 rounded-full border border-studio-line bg-studio-bg/70 py-0.5 pr-2 pl-0.5 text-xs text-studio-mist"
-            >
+          <div className="flex -space-x-2">
+            {participants.slice(0, 5).map((person) => (
               <span
-                className="inline-block h-2.5 w-2.5 rounded-full ring-2 ring-studio-elevated"
+                key={person.id}
+                title={person.name}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-studio-panel text-[10px] font-medium text-studio-bg ring-1 ring-white/10"
                 style={{ backgroundColor: person.color }}
-                aria-hidden
-              />
-              <span className="max-w-24 truncate">{person.name}</span>
-            </span>
-          ))
+              >
+                {person.name.slice(0, 1).toUpperCase()}
+              </span>
+            ))}
+            {participants.length > 5 ? (
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-studio-panel bg-studio-elevated text-[9px] text-studio-dim">
+                +{participants.length - 5}
+              </span>
+            ) : null}
+          </div>
         )}
       </div>
       <label className="flex items-center gap-2 text-xs text-studio-dim">
-        You
+        Tú
         <input
-          className="w-28 rounded-lg border border-studio-line bg-studio-bg px-2 py-1 text-xs text-studio-fog outline-none focus:border-studio-accent"
+          className="w-24 rounded-lg border border-white/10 bg-studio-bg/60 px-2 py-1 text-xs text-studio-fog outline-none focus:border-studio-accent/50 md:w-28"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
           onBlur={() => void commitName()}
@@ -109,7 +112,9 @@ export function PresenceHeader({
           {error}
         </span>
       ) : status === "live" ? (
-        <span className="text-[11px] text-studio-accent">{participants.length} online</span>
+        <span className="rounded-full bg-studio-accent/15 px-2 py-0.5 text-[11px] text-studio-accent">
+          {participants.length} online
+        </span>
       ) : null}
     </div>
   );

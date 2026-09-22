@@ -4,6 +4,26 @@
 
 Keep the system modular enough that an audio, realtime, synchronization, or persistence implementation can be replaced without rewriting the application.
 
+## Implementation gate (required order)
+
+Do not skip ahead to collaborative networking before local measurement on real hardware.
+
+```text
+docs + ADRs locked
+    ↓
+Audio Lab (local only)
+    ↓
+UMC22 / iTrack Solo / Scarlett Solo acceptance
+    ↓
+Measure real latency (enumerateDevices, getSettings, baseLatency, outputLatency)
+    ↓
+ONLY THEN → recording (dry tap)
+    ↓
+ONLY THEN → WebRTC / LiveKit media
+```
+
+Empirical numbers from your interfaces become part of project research, not theoretical defaults alone.
+
 ## Layers
 
 ```text
@@ -73,7 +93,7 @@ ChannelMapper
     ↓
 Track Graph
     ↓
-FX Chain
+FX Chain (monitor path)
     ↓
 Track Bus
     ↓
@@ -82,7 +102,35 @@ Master Bus
 Output Router
 ```
 
-Recording uses a tap before monitor-only effects when possible.
+Recording uses a dry tap **before** monitor-only effects when possible.
+
+### Dual path (local)
+
+```text
+Input ──┬── Dry Record Tap
+        └── Monitor FX ──> Local Mix ──> Master ──> Output
+```
+
+### Direct Monitor (hardware)
+
+Direct Monitor is a **physical path** on the interface (UMC22, Scarlett, etc.). The web app does not control it unless a future hardware API exists. Document it as user-managed; software monitor is independent.
+
+## Track routing model (target domain)
+
+Each track exposes independent states — never one `enabled` boolean:
+
+| State | Scope | Meaning |
+| --- | --- | --- |
+| Monitor | Per-participant view | Audible in local mix |
+| Transmit | Track / session | Published to remote media |
+| Record Arm | Track | Captured to project |
+| Mute | Per-participant view | Received but silenced locally |
+| Subscribe | Per-participant view | Remote media delivered at all |
+| Volume / Pan | Per-participant view | Local mix controls |
+
+**Local monitoring and remote monitoring are independent.** Nicholas's mix does not change Friend's mix.
+
+Current Audio Lab implements a **subset** (mute/solo/gain on local channels). Full `TrackRoutingState` is specified in `docs/specs/AUDIO-MONITOR-MIX.md` — not yet implemented.
 
 ## Realtime architecture
 
@@ -98,7 +146,7 @@ Supabase Realtime / WebSocket / DataChannel
 MEDIA PLANE
 WebRTC / LiveKit
     ├── local track publication
-    └── remote track subscription
+    └── remote track subscription (selective)
 
 PERSISTENCE PLANE
 Supabase
@@ -108,6 +156,8 @@ Supabase
 ```
 
 Never make WebSocket the primary transport for live instrument audio.
+
+Remote tracks converge on the same `Track` domain model as local inputs (`sourceType`: local-input | remote-participant | recording | imported-audio).
 
 ## Replaceable providers
 
@@ -121,6 +171,8 @@ Never make WebSocket the primary transport for live instrument audio.
 - `LiveKitRealtimeMediaProvider`
 - Experimental `PeerToPeerWebRTCProvider`
 - Future provider
+
+Must support selective subscribe/unsubscribe distinct from local mute.
 
 ### SessionTransport
 
@@ -150,3 +202,23 @@ Use an external store or subscription boundary for high-frequency UI telemetry.
 - `AudioContext.currentTime` owns local audio scheduling.
 - `SessionClock` maps collaborative session time into local audio time.
 - UI frames are visualization only.
+- **Click is generated locally** on each client from shared tempo/transport anchors — never as remote audio.
+
+## Latency architecture
+
+Never present one number as total latency. Decompose per ADR-018:
+
+- `baseLatencyMs`, `outputLatencyMs`, local monitor path estimate
+- `networkRttMs`, jitter, packet loss (control and/or media stats)
+- remote one-way estimate (marked `est.` when not directly measured)
+- clock offset / drift when SessionClock exists
+
+Targets: local software monitor **<15 ms preferred**; remote one-way **<=30 ms** target.
+
+## Related documentation
+
+- Specs: [`docs/specs/`](./specs/)
+- Research (architecture closed 2026-09-21): [`docs/research/2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md`](./research/2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md)
+- ADRs: [`docs/DECISIONS.md`](./DECISIONS.md), [`docs/adr/README.md`](./adr/README.md)
+- Quick learning: [`docs/learn/README.md`](./learn/README.md)
+- Infrastructure: [`docs/infrastructure/README.md`](./infrastructure/README.md)

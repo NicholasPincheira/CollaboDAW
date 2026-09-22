@@ -140,7 +140,8 @@ Expose separate metrics when supported:
 - AudioContext sample rate
 - base latency
 - output latency
-- input channel count
+- local monitor path estimate (partial — not full instrument→ear when Direct Monitor is on)
+- input channel count (from `getSettings()`)
 - network RTT
 - jitter
 - packet loss
@@ -148,6 +149,22 @@ Expose separate metrics when supported:
 - drift / phase error
 
 Never present a single latency value as if it describes the complete instrument-to-ear path.
+
+Engineering targets (ADR-018): local software monitor **<15 ms** preferred; remote one-way **<=30 ms**. Mark estimates with `est.`
+
+## Implementation gate
+
+Do not implement WebRTC, LiveKit media, recording, IA, NAM, or full collaborative routing until:
+
+1. Architecture docs and ADRs are read (`docs/specs/`, `docs/research/2026-09-21-LATENCY-AUDIO-MONITORING-FINAL.md`).
+2. Audio Lab is validated on target hardware (UMC22, iTrack Solo, Scarlett Solo).
+3. Real benchmarks are captured via `enumerateDevices()`, `getSettings()`, `baseLatency`, `outputLatency`.
+
+Order: **Audio Lab → measure → recording → WebRTC**. See `docs/ARCHITECTURE.md`.
+
+## Track routing (target)
+
+Each track separates Monitor, Transmit, Record Arm, Mute, Subscribe — per participant for monitor/mute/subscribe. **Mute ≠ Unsubscribe.** Direct Monitor is hardware/user-managed, not Web Audio. Spec: `docs/specs/AUDIO-MONITOR-MIX.md`.
 
 ## Performance
 
@@ -203,7 +220,7 @@ Before adding a dependency:
 Before implementing any meaningful feature:
 
 1. Read `AGENTS.md`.
-2. Read the relevant docs under `docs/`.
+2. Read the relevant docs under `docs/` (including `docs/specs/` when touching audio, latency, or collaboration).
 3. Read applicable skills under `.cursor/skills/`.
 4. Inspect existing code and dependencies.
 5. Identify the architectural boundary.

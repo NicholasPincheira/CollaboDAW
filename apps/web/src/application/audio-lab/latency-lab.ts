@@ -1,6 +1,10 @@
 import type { LatencyMode } from "../../infrastructure/audio/web-audio-lab-engine.ts";
 import type { AudioLabController, AudioLabSnapshot } from "../audio-lab/audio-lab-controller.ts";
 import type { ControlPlaneMetrics } from "../../domain/session/control-plane-probe.ts";
+import {
+  classifyLocalMonitorPathMs,
+  softwareMonitorPathMs,
+} from "../../domain/audio/latency-bands.ts";
 
 export interface LatencyCandidateResult {
   latencyMode: LatencyMode;
@@ -47,7 +51,9 @@ export async function autoTuneMonitorPath(controller: AudioLabController): Promi
     tried.push(scoreSnapshot(snap, candidate.latencyMode, candidate.sampleRate));
   }
 
-  const ranked = [...tried].filter((item) => item.pathMs !== null).sort((a, b) => (a.pathMs ?? 9e9) - (b.pathMs ?? 9e9));
+  const ranked = [...tried]
+    .filter((item) => item.pathMs !== null)
+    .sort((a, b) => (a.pathMs ?? 9e9) - (b.pathMs ?? 9e9));
   const best = ranked[0] ?? null;
   if (!best) {
     return {
@@ -64,11 +70,12 @@ export async function autoTuneMonitorPath(controller: AudioLabController): Promi
     await controller.startAudio();
   }
 
+  const band = classifyLocalMonitorPathMs(best.pathMs);
   return {
     tried,
     best,
     applied: true,
-    note: `Applied ${best.latencyMode} @ ${best.sampleRate ?? "auto"} → ${best.pathMs?.toFixed(1)} ms path. For playing feel, also enable Behringer Direct Monitor and mute software monitor.`,
+    note: `Applied ${best.latencyMode} @ ${best.sampleRate ?? "auto"} → ${best.pathMs?.toFixed(1)} ms localMonitorPath (partial) · band ${band}. Prefer Direct Monitor ON + software monitor OFF for playing feel.`,
   };
 }
 
@@ -78,17 +85,65 @@ export function buildDebugBundle(input: {
   autoTune: AutoTuneReport | null;
   sessionId: string;
 }): string {
+  const baseMs =
+    input.lab.diagnostics.baseLatencySeconds === null
+      ? null
+      : input.lab.diagnostics.baseLatencySeconds * 1000;
+  const outputMs =
+    input.lab.diagnostics.outputLatencySeconds === null
+      ? null
+      : input.lab.diagnostics.outputLatencySeconds * 1000;
+  const localMonitorPathMs = softwareMonitorPathMs(
+    input.lab.diagnostics.baseLatencySeconds,
+    input.lab.diagnostics.outputLatencySeconds,
+  );
+  const localMonitorBand = classifyLocalMonitorPathMs(localMonitorPathMs);
+
   return JSON.stringify(
     {
+      schema: "collabodaw.hardware-benchmark.v1",
       exportedAt: new Date().toISOString(),
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "unknown",
       sessionId: input.sessionId,
+      benchmark: {
+        aiAssistMode: input.lab.aiAssistMode,
+        experiencePresetId: input.lab.experiencePresetId,
+        latencyHint: input.lab.latencyMode,
+        preferredSampleRate: input.lab.preferredSampleRate,
+        softwareMonitor: input.lab.monitoring,
+        directMonitorHardware: "user-managed",
+        baseLatencyMs: baseMs,
+        outputLatencyMs: outputMs,
+        localMonitorPathMs,
+        localMonitorBand,
+        adr018LocalTargetMs: 15,
+        adr018RemoteOneWayTargetMs: 30,
+        sampleRateHz: input.lab.diagnostics.sampleRate,
+        inputChannelCount: input.lab.diagnostics.inputChannelCount,
+        inputLabel: labelFor(input.lab, input.lab.inputDeviceId),
+        outputLabel: labelFor(input.lab, input.lab.outputDeviceId),
+        profile: input.lab.profile
+          ? {
+              id: input.lab.profile.id,
+              manufacturer: input.lab.profile.manufacturer,
+              model: input.lab.profile.model,
+            }
+          : null,
+        sinkStatus: input.lab.sinkStatus,
+        secondarySinkStatus: input.lab.secondarySinkStatus,
+        routingHint: routingHint(input.lab),
+        subjectiveFeel1to5: null,
+        notes: "Fill subjectiveFeel1to5 after playing a short phrase. Keep AI off for baseline.",
+      },
       audio: {
         status: input.lab.status,
+        experiencePresetId: input.lab.experiencePresetId,
+        aiAssistMode: input.lab.aiAssistMode,
         latencyMode: input.lab.latencyMode,
         preferredSampleRate: input.lab.preferredSampleRate,
+        monitoring: input.lab.monitoring,
         diagnostics: input.lab.diagnostics,
-        pathMs: pathMs(input.lab),
+        pathMs: localMonitorPathMs,
         sinkStatus: input.lab.sinkStatus,
         secondarySinkStatus: input.lab.secondarySinkStatus,
         inputDeviceId: input.lab.inputDeviceId,
@@ -119,16 +174,9 @@ function scoreSnapshot(
     sampleRate,
     baseMs: base === null ? null : base * 1000,
     outputMs: output === null ? null : output * 1000,
-    pathMs: base === null && output === null ? null : ((base ?? 0) + (output ?? 0)) * 1000,
+    pathMs: softwareMonitorPathMs(base, output),
     sampleRateHz: snap.diagnostics.sampleRate,
   };
-}
-
-function pathMs(lab: AudioLabSnapshot): number | null {
-  const base = lab.diagnostics.baseLatencySeconds;
-  const output = lab.diagnostics.outputLatencySeconds;
-  if (base === null && output === null) return null;
-  return ((base ?? 0) + (output ?? 0)) * 1000;
 }
 
 function labelFor(lab: AudioLabSnapshot, id: string | null): string | null {
@@ -139,16 +187,17 @@ function labelFor(lab: AudioLabSnapshot, id: string | null): string | null {
 function routingHint(lab: AudioLabSnapshot): string {
   const input = labelFor(lab, lab.inputDeviceId)?.toLowerCase() ?? "";
   const output = labelFor(lab, lab.outputDeviceId)?.toLowerCase() ?? "";
-  const inputIsBehringer = input.includes("behringer") || input.includes("focusrite") || input.includes("scarlett");
+  const inputIsInterface =
+    input.includes("behringer") || input.includes("focusrite") || input.includes("scarlett");
   const outputIsSameFamily =
     (input.includes("behringer") && output.includes("behringer")) ||
     (input.includes("focusrite") && output.includes("focusrite")) ||
     (input.includes("scarlett") && output.includes("scarlett"));
-  if (inputIsBehringer && !outputIsSameFamily) {
+  if (inputIsInterface && !outputIsSameFamily) {
     return "Input is the interface but primary output is not — set Primary output to the interface to cut Windows mixer delay.";
   }
   if (lab.latencyMode !== "live") {
-    return "Preset is not live — switch to live for monitoring tests.";
+    return "latencyHint is not live — switch to Feel / live for monitoring tests.";
   }
   return "Routing looks aligned for a software-monitor test.";
 }

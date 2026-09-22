@@ -9,6 +9,14 @@ import type {
   LearnInputState,
 } from "../../domain/audio/audio-lab-types.ts";
 import type { AudioHardwareProfile } from "../../domain/audio/hardware-profile.ts";
+import {
+  DEFAULT_AI_ASSIST_MODE,
+  DEFAULT_EXPERIENCE_PRESET_ID,
+  buildExperienceNotices,
+  getExperiencePreset,
+  type AiAssistMode,
+  type ExperiencePresetId,
+} from "../../domain/audio/experience-presets.ts";
 import { normalizeDeviceLabel } from "../../domain/audio/known-profiles.ts";
 import { pickStrongestChannel } from "../../domain/audio/signal-analysis.ts";
 import { DefaultChannelMapper } from "../../domain/audio/default-channel-mapper.ts";
@@ -41,6 +49,8 @@ export interface AudioLabSnapshot {
   channelMonitors: ChannelMonitorState[];
   latencyMode: LatencyMode;
   preferredSampleRate: number | null;
+  experiencePresetId: ExperiencePresetId;
+  aiAssistMode: AiAssistMode;
   sinkStatus: "default" | "applied" | "unsupported" | "failed";
   secondarySinkStatus: "off" | "applied" | "unsupported" | "failed";
   clickPlaying: boolean;
@@ -96,12 +106,17 @@ export class AudioLabController {
       channelMonitors: [],
       latencyMode: "live",
       preferredSampleRate: 48000,
+      experiencePresetId: DEFAULT_EXPERIENCE_PRESET_ID,
+      aiAssistMode: DEFAULT_AI_ASSIST_MODE,
       sinkStatus: "default",
       secondarySinkStatus: "off",
       clickPlaying: false,
       learn: idleLearn(),
       notices: [
-        "Software monitoring can feedback through speakers. Prefer headphones or hardware direct monitor.",
+        ...buildExperienceNotices(
+          getExperiencePreset(DEFAULT_EXPERIENCE_PRESET_ID),
+          DEFAULT_AI_ASSIST_MODE,
+        ),
         "Dual output uses primary AudioContext sink + secondary <audio> sink (Chromium). Devices are not sample-locked.",
         "LiveKit / WebRTC audio sync is still outside this slice; presence uses Supabase Realtime.",
       ],
@@ -225,6 +240,49 @@ export class AudioLabController {
     if (wasRunning) {
       await this.startAudio();
     }
+  }
+
+  /**
+   * Apply a coherent experience bundle (latency mode + SR + software monitor + tips).
+   * Does not change AI assist — keep that orthogonal for A/B tests.
+   */
+  async applyExperiencePreset(id: ExperiencePresetId): Promise<void> {
+    const preset = getExperiencePreset(id);
+    const wasRunning = this.snapshot.status === "running";
+    this.click.stop();
+    await this.engine.configurePerformance({
+      latencyMode: preset.audio.latencyMode,
+      sampleRate: preset.audio.preferredSampleRate,
+    });
+    this.engine.setMonitoring(preset.audio.softwareMonitoring);
+    this.patch({
+      experiencePresetId: id,
+      latencyMode: preset.audio.latencyMode,
+      preferredSampleRate: preset.audio.preferredSampleRate,
+      monitoring: preset.audio.softwareMonitoring,
+      clickPlaying: false,
+      notices: [
+        ...buildExperienceNotices(preset, this.snapshot.aiAssistMode),
+        "Dual output uses primary AudioContext sink + secondary <audio> sink (Chromium). Devices are not sample-locked.",
+        "LiveKit / WebRTC audio sync is still outside this slice; presence uses Supabase Realtime.",
+      ],
+    });
+    if (wasRunning) {
+      await this.startAudio();
+    }
+  }
+
+  /** Store AI preference without forcing DSP. Stubs stay inactive until media path exists. */
+  setAiAssistMode(mode: AiAssistMode): void {
+    const preset = getExperiencePreset(this.snapshot.experiencePresetId);
+    this.patch({
+      aiAssistMode: mode,
+      notices: [
+        ...buildExperienceNotices(preset, mode),
+        "Dual output uses primary AudioContext sink + secondary <audio> sink (Chromium). Devices are not sample-locked.",
+        "LiveKit / WebRTC audio sync is still outside this slice; presence uses Supabase Realtime.",
+      ],
+    });
   }
 
   setChannelMonitor(streamChannel: number, state: Partial<ChannelMonitorState>): void {
